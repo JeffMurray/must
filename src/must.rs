@@ -16,9 +16,9 @@
 
 /*	Must goals:
 
-	Must be a unique random server assigned key that works will with b+ 
-	tree to drill through it, and a time stamp that differentiates it 
-	between saved versions of the same document.
+	Must be a unique, random, server assigned key that works well for drilling
+	through a b+ tree, and must have a time stamp that differentiates matching keys
+	as saved versions of the same document.
 	
 	Must be quick and easy to work with, and powerful enough to 
 	confidentially assign would-wide unique keys to billions of documents.
