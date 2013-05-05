@@ -1,0 +1,38 @@
+Jeff Murray
+Must: i4I9czxzlIQmFkQC-1367696223-236754579
+In Rust Series
+4 May 2013 
+
+Introduction
+
+* Languages I have taught myself
+
+	-Basic
+	-Smalltalk
+	-c
+	-c++
+	-Visual Basic
+	-vb.net
+	-java
+	-Lua (durring my WoW phase)
+	
+* Why I like Rust
+
+	-While I like java it is not open source and I like it less 
+		after Oracle bought it
+		
+	-.Net is not open source..
+	
+	-Programming with c and c++ is difficult to use for large projects. 
+	
+	-Rust is 100% Open Source
+	
+	-Rust's super picky compiler and well structure enforces safe 
+		programming practices while leaving executable code that is about 
+		as fast as c++	
+		
+	-Rust's documentation is awesome, no really.
+	
+	-The Rust Tutorial http://www.rust-lang.org/
+
+* To learn Rust, I'll try to write Must, and make Rust tutorials
