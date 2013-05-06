@@ -27,9 +27,9 @@ Introduction
 	
 	-Rust is 100% Open Source
 	
-	-Rust's super picky compiler and well structure enforces safe 
-		programming practices while leaving executable code that is about 
-		as fast as c++	
+	-Rust's super picky compiler and structure enforces safe programming 
+		practices while leaving executable code that is about as fast
+		as c++
 		
 	-Rust's documentation is awesome, no really.
 	
