@@ -14,20 +14,25 @@
  use std::json ::{Json,Object,ToJson};
  use core::hashmap::linear::LinearMap;
 
-/*	Must goals:
+/*	To compile: rustc --lib rust.rs
+	See must_test.rs for examples how to use a Must.
+*/
 
-	Must be a unique, random, server assigned key that works well for drilling
-	through a b+ tree, and must have a time stamp that differentiates matching keys
-	as saved versions of the same document.
+/*	Must key goals:
+
+	-Be a unique, random, server assigned key that works well for drilling
+	through a b+ tree, and must have a time stamp that differentiates versions
+	saved under the same key.
 	
-	Must be quick and easy to work with, and powerful enough to 
+	-Be quick and easy to work with, and powerful enough to 
 	confidentially assign would-wide unique keys to billions of documents.
 	
-	Must be easy to convert to and from Json Objects
+	-Be easy to convert to and from Json Objects
 */
 
 
-/*	A must holds server issued key and revision information about a document.
+/*	A Must holds a server issued key and revision time stamp that identifies a 
+	version of some document.
 */
 struct Must {
 
@@ -47,7 +52,7 @@ impl Must{
 		The time stamp data represents the sec and nsec values at the time 
 		of stamping, adjusted to utc
 	
-		This fn is used for making a key when adding adding new document to
+		This fn is used for making a key when adding adding a new document to
 		the the file and b+ tree indexing system
 	*/
 	pub fn new_must() -> Must {
@@ -100,16 +105,17 @@ impl Ord for Must {
 	
 		if (self.key != other.key) {
 			
-			//Key sorts ascending
-			
+			/*	Key sorts ascending
+			*/
 			self.key < other.key
 		}
 		else{
 		
-			//I am choosing to make the most current time be the first on in the list
-			//of matching keys in the b+ tree.  That is why the < operator is 
-			//reversed below
-			 
+			/*	I am choosing to make the most current time be 
+				the first on in the list of matching keys in the 
+				b+ tree.  That is why the < operator is reversed 
+				below
+			*/
 			 if ( self.sec != other.sec ) {
 				
 				self.sec > other.sec
@@ -123,23 +129,23 @@ impl Ord for Must {
 		
 	/*	less than or equal
 	*/
-    fn le(&self, other: &Must) -> bool {
-    
-    	!(*other).lt(&(*self)) 
+	fn le(&self, other: &Must) -> bool {
+
+		!(*other).lt(&(*self)) 
 	}
 	
 	/*	grater than or equal
 	*/	
-    fn ge(&self, other: &Must) -> bool { 
+	fn ge(&self, other: &Must) -> bool { 
     	
-    	!(*self).lt(other) 
+		!(*self).lt(other) 
 	}
 
 	/*	grater than
 	*/	
-    fn gt(&self, other: &Must) -> bool { 
+	fn gt(&self, other: &Must) -> bool { 
     	
-    	(*other).lt(&(*self))  	
+		(*other).lt(&(*self))  	
 	}
 }
 
@@ -147,19 +153,19 @@ impl Eq for Must {
 
 	/*	equal
 	*/
-    #[inline(always)]
-    fn eq(&self, other: &Must) -> bool {
-    
-        eq_must(self, other) 
-    }
+	#[inline(always)]
+	fn eq(&self, other: &Must) -> bool {
+
+		eq_must(self, other) 
+	}
 
 	/*	not equal
 	*/    
-    #[inline(always)]
-    fn ne(&self, other: &Must) -> bool {
-    
-        !eq_must(self, other) 
-    }
+	#[inline(always)]
+	fn ne(&self, other: &Must) -> bool {
+
+		!eq_must(self, other) 
+	}
 }
 
 /*	Returns true if the key and time stamp is equal in
@@ -174,17 +180,17 @@ impl to_str::ToStr for Must {
 
 	/*	Returns hyphen delimited string: key-sec-nsec
 	*/
-    fn to_str(&self) -> ~str {
-    
-    	copy self.key + &"-"  + self.sec.to_str() + &"-" + self.nsec.to_str()   	
-    } 
+	fn to_str(&self) -> ~str {
+
+		copy self.key + &"-"  + self.sec.to_str() + &"-" + self.nsec.to_str()   	
+	} 
 }
 
 impl ToJson for Must {
 
 	/*	Returns Json Object in the Must format
 	*/
-    fn to_json(&self) -> Json {
+    	fn to_json(&self) -> Json {
     
 		let mut must_spec = LinearMap::new();
 

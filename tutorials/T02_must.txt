@@ -11,9 +11,9 @@ Rust Series
 must.rs contains Rust examples of, 
 
 struct,
-impl 'or implements',
+impl 'implements',
 pub fn 'public function',
-Rust tutorial advocated constructor pattern 'see static function Must::new_must()',
+the Rust-tutorial advocated constructor pattern 'see static function Must::new_must()',
 rand::Rng().gen_str, 'used to generate the random key'
 std::time::at_utc(std::time::get_time()).to_timespec(),
 impl Ord 'to implement comparators <=, <, >= and >',
