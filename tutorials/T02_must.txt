@@ -1,0 +1,33 @@
+Jeff Murray
+Must: waMEbQ0jM0yWVhbg-1367971292-631143090
+Rust Series
+7 May 2013 
+
+* Session 2: must.rs, must_test.rs
+
+* Must, a highly specialized document key and revision marker for a
+	document system that is sketched in my head at the moment ;)
+
+must.rs contains Rust examples of, 
+
+struct,
+impl 'or implements',
+pub fn 'public function',
+Rust tutorial advocated constructor pattern 'see static function Must::new_must()',
+rand::Rng().gen_str, 'used to generate the random key'
+std::time::at_utc(std::time::get_time()).to_timespec(),
+impl Ord 'to implement comparators <=, <, >= and >',
+impl Eq 'to implement comparators == and !=',
+impl to_str::ToStr and
+impl ToJson
+
+must_test.rs contains Rust examples of,
+
+fn main() 'compiler needs...see Rust Tutorial 17.1 Crates',
+io::println 'writes to the Terminal',
+mod must 'how we use the dll we make from must.rs',
+and using and testing a Must
+	
+
+
+	
