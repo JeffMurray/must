@@ -1,0 +1,13 @@
+Jeff Murray
+Must: 6VJ1LqRDLwRmQI2v-1369611149-401782526
+Rust Series
+26 May 2013 
+
+* Session 2: jah_args.rs
+
+Examples of:
+
+Using rust Option<T> and Result<T,T>
+Making args in the must document system
+the rustc unit tester
+
