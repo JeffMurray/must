@@ -1,6 +1,5 @@
 26 May 2013
 
-I plan to record some live screen and voice sessions the highlights in each session.
+I plan to record some live screen and voice sessions that follows the agenda in the text files.
 
-Maybe once there is some interest.
 
