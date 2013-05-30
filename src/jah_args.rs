@@ -172,10 +172,10 @@ impl JahArgs {
 	pub fn arg_keys( &self ) -> ~[ ~str ] {
 		
 		let mut keys = ~[];
-        for self.args.each |&( key, _ )| {
+		for self.args.each |&( key, _ )| {
 			keys.push( copy *key );
-        }
-        keys
+		}
+		keys
 	}
 }
 

@@ -73,9 +73,9 @@ impl JahSpec {
 	//	Returns the must key for argument spec in this Jah or returns
 	//	a List of errors Identified by must key
 	
-	pub fn spec_must_key( &self ) -> ~str {
+	pub fn spec_key( &self ) -> ~str {
 		
-		match self.spec_args.get_str( ~"spec_must_key" ) {
+		match self.spec_args.get_str( ~"spec_key" ) {
 			Ok( key_val ) => {
 				key_val
 			}
@@ -88,12 +88,12 @@ impl JahSpec {
 	//	Checks that the supplied arguments are allowed, and that they conform to 
 	//	conforms to the spec.  Also checks that any required args are present
 	
-	pub fn check_args( &self, args: JahArgs ) -> Result<bool, ~[Object]> {
+	pub fn check_args( &self, args: JahArgs ) -> Result<bool, ~[JahArgs]> {
 	
 		match self.check_spec() {
 			Ok( _ ) => {}
 			Err( errs ) => {
-				return Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"s0lFEONAYynSawUd" ) ] )
+				return Err( errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"s0lFEONAYynSawUd" ) ] ) )
 			}
 		}
 		match self.get_allowed() {
@@ -105,32 +105,40 @@ impl JahSpec {
 								Ok( true )
 							}
 							Err( errs ) => {
-								Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"E4S4zOP8QKA6bm62" ) ] )
+								Err( errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"E4S4zOP8QKA6bm62" ) ] ) )
 							}
 						}
 					}
 					Err( errs ) => {
-						Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"CvSaRhKZYrgqIl2q" ) ] )
+						Err( errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"CvSaRhKZYrgqIl2q" ) ] ) )
 					}
 				}
     		}
     		Err( errs ) => {
-    			Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"kmM0kE9Isb61If3j" ) ] )
+    			Err( errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"kmM0kE9Isb61If3j" ) ] ) )
 			}
 		}
 	}
 	
+	priv errors_to_jah_args( errs: ~[Object] ) -> ~[JahArgs] {
+	
+		let mut args = ~[];
+		for errs.each | err | {
+			args.push( JahArgs::new( err );
+		}
+		args
+	}
 	priv fn check_spec( &self ) -> Result<bool, ~[Object]> {
 		
-		match self.spec_args.get_str( ~"spec_must_key" ) {
+		match self.spec_args.get_str( ~"spec_key" ) {
 			Ok( _ ) => {}
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"spec_must_key", Bootstrap::jah_spec_spec_key(), ~"a5q3rNiRtXeoO9Wj" ) ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"spec_key", Bootstrap::jah_spec_spec_key(), ~"a5q3rNiRtXeoO9Wj" ) ] )
 					}
 					WrongDataType => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"spec_must_key", Bootstrap::jah_spec_spec_key(), ~"EkhF0tz8VkQdmZL9" ) ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"spec_key", Bootstrap::jah_spec_spec_key(), ~"EkhF0tz8VkQdmZL9" ) ] )
 					}					
 				}
 			}
@@ -138,7 +146,7 @@ impl JahSpec {
 		
 		if self.spec_args.arg_count() != 2 {
 			for self.spec_args.arg_keys().each | key | {
-				if !( *key ==  ~"spec_must_key" || *key == ~"allowed" ) {
+				if !( *key ==  ~"spec_key" || *key == ~"allowed" ) {
 					return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_is_not_allowed(), copy *key, Bootstrap::jah_spec_spec_key(), ~"yTI6O36SdlSKrlVV" ) ] )
 				}
 			}
@@ -222,7 +230,7 @@ impl JahSpec {
 				let mut errors = ~[];
 				for req_args.each | req_key | {
 					if !args.has_arg( req_key ) {
-						errors.push( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy *req_key, self.spec_must_key(), ~"InLa9WXyftFGkD0J" ) );
+						errors.push( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy *req_key, self.spec_key(), ~"InLa9WXyftFGkD0J" ) );
 					}
 				}
 				if errors.len() == 0 {
@@ -247,10 +255,10 @@ impl JahSpec {
 			Err( err ) =>  {
 				match err {
 					MissingKey => {
-						Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"allowed", self.spec_must_key(), ~"4QRHmXsoKu1sWGVl" ) ] )
+						Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"allowed", self.spec_key(), ~"4QRHmXsoKu1sWGVl" ) ] )
 					}	
 					WrongDataType => {
-						Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_list(), ~"allowed", self.spec_must_key(), ~"GfJyy8rO1hTvM0gs" ) ] )
+						Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_list(), ~"allowed", self.spec_key(), ~"GfJyy8rO1hTvM0gs" ) ] )
 					}
 				}						
 			}
@@ -267,7 +275,7 @@ impl JahSpec {
 				Ok( list ) => {
 					match args.get_json_val( copy *key ) {
 						Some(val) => { 
-							for JahSpec::check_rules( copy *key, copy list, copy val, self.spec_must_key() ).each | err_obj | {
+							for JahSpec::check_rules( copy *key, copy list, copy val, self.spec_key() ).each | err_obj | {
 								//we only get here if there are one or more
 								//errors returned in the vector
 								errors.push( copy *err_obj );
@@ -281,10 +289,10 @@ impl JahSpec {
 				Err( err ) => { 
 					match err {
 						MissingKey => {
-							errors.push( Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_is_not_allowed(), copy *key,  self.spec_must_key(), ~"5uAMEPFBPxQVMTPB") )
+							errors.push( Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_is_not_allowed(), copy *key,  self.spec_key(), ~"5uAMEPFBPxQVMTPB") )
 						}
 						WrongDataType => {
-							errors.push( Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_list(), copy *key,  self.spec_must_key(), ~"XmPUcGmkS5wqXknu") )
+							errors.push( Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_list(), copy *key,  self.spec_key(), ~"XmPUcGmkS5wqXknu") )
 						}
 					}
 				}
@@ -299,11 +307,11 @@ impl JahSpec {
 	
 		//	Loops through all assigned rules for a single arg
 	//	and applyes them to the value
-	priv fn check_rules(arg_key: ~str, rules: ~[ Json ], value: Json, spec_must_key: ~str ) -> ~[ Object ] {
+	priv fn check_rules(arg_key: ~str, rules: ~[ Json ], value: Json, spec_key: ~str ) -> ~[ Object ] {
 	
 		let mut errors: ~[ Object ] = ~[ ];
 		for rules.each | rule | {
-			for JahSpec::check_rule(copy arg_key, copy *rule, copy value, copy spec_must_key ).each | error | {
+			for JahSpec::check_rule(copy arg_key, copy *rule, copy value, copy spec_key ).each | error | {
 				errors.push( copy *error );
 			}
 		}
@@ -314,11 +322,11 @@ impl JahSpec {
 	//	Checks that the rule is an Object, then sends it to do_rule
 	//	along with the value to check
 	
-	priv fn check_rule( arg_key: ~str, rule: Json, value: Json, spec_must_key: ~str ) -> ~[Object] {
+	priv fn check_rule( arg_key: ~str, rule: Json, value: Json, spec_key: ~str ) -> ~[Object] {
 	
 		match rule {
 			Object( ro ) => {
-				match ArgRules::do_rule(arg_key, copy *ro, value, copy spec_must_key ) {
+				match ArgRules::do_rule(arg_key, copy *ro, value, copy spec_key ) {
 					Ok(_) => { 
 						~[] //arg_key passed, there is nothing to do
 					}, 
@@ -339,7 +347,7 @@ impl ArgRules {
 	//	Checks a single rule against a single arg value returns OK
 	//	if the value passes the check, otherwise Err with the errors
 	
-	pub fn do_rule( arg_key: ~str, rule: Object, val: Json, spec_must_key: ~str ) -> Result<bool,~[Object]> {
+	pub fn do_rule( arg_key: ~str, rule: Object, val: Json, spec_key: ~str ) -> Result<bool,~[Object]> {
 
 		match ArgRules::get_rule_key( rule ) {
 			Ok ( rule_key ) => {
@@ -348,21 +356,21 @@ impl ArgRules {
 					Ok(true) 
 				}
 				else if rule_key == Bootstrap::arg_rule_key_arg_key_must_be_string() {
-					ArgRules::arg_rule_must_be_string( copy arg_key, copy spec_must_key, val )
+					ArgRules::arg_rule_must_be_string( copy arg_key, copy spec_key, val )
 				}
 				else if rule_key == Bootstrap::arg_rule_key_arg_must_be_object() {  
-					ArgRules::arg_rule_must_be_object(copy arg_key, copy spec_must_key, val )
+					ArgRules::arg_rule_must_be_object(copy arg_key, copy spec_key, val )
 				} 
 				else if rule_key == Bootstrap::arg_rule_arg_key_arg_must_be_number() {  
-					ArgRules::arg_rule_must_be_number(copy arg_key, copy spec_must_key, val )
+					ArgRules::arg_rule_must_be_number(copy arg_key, copy spec_key, val )
 				}
 				else if rule_key == Bootstrap::arg_rule_key_arg_must_be_list() {  
-					ArgRules::arg_rule_must_be_list(copy arg_key, copy spec_must_key, val )
+					ArgRules::arg_rule_must_be_list(copy arg_key, copy spec_key, val )
 				} 
 				else if rule_key == Bootstrap::arg_rule_key_arg_must_be_bool() {  
-					ArgRules::arg_rule_must_be_bool(copy arg_key, copy spec_must_key, val )
+					ArgRules::arg_rule_must_be_bool(copy arg_key, copy spec_key, val )
 				} else {
-					Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_rule_must_be_implemented(), copy rule_key, spec_must_key, ~"OIbvlKzkmbwyYgBj") ] )
+					Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_rule_must_be_implemented(), copy rule_key, spec_key, ~"OIbvlKzkmbwyYgBj") ] )
 				}
 
 			}
@@ -375,17 +383,17 @@ impl ArgRules {
 	
 	pub fn get_rule_key( rule: Object ) -> Result<~str, ~[Object]> {
 	
-		match JahArgs::new( ~rule ).get_str( ~"rule_must_key" ) {
-			Ok( rule_must_key ) => {
-				Ok( rule_must_key )
+		match JahArgs::new( ~rule ).get_str( ~"rule_key" ) {
+			Ok( rule_key ) => {
+				Ok( rule_key )
 			}
 			Err( err ) => { 
 				match err {
 					MissingKey => {
-						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"rule_must_key",  Bootstrap::spec_rule_spec_key(), ~"spDzbsBn37HorqMZ") ] )
+						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"rule_key",  Bootstrap::spec_rule_spec_key(), ~"spDzbsBn37HorqMZ") ] )
 					}
 					WrongDataType => {
-						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"rule_must_key",  Bootstrap::spec_rule_spec_key(), ~"pxLJQ3RhHm5ls4YF") ] )
+						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"rule_key",  Bootstrap::spec_rule_spec_key(), ~"pxLJQ3RhHm5ls4YF") ] )
 					}
 				}
 			}			
@@ -394,70 +402,70 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be an object
 	
-	fn arg_rule_must_be_object(arg_key: ~str, spec_must_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_object(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
 		
 		match val {
 			Object(_) => {
 				Ok( true ) 
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_object(), copy arg_key, copy spec_must_key, ~"Qh6CpHMpGthIFStr") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_object(), copy arg_key, copy spec_key, ~"Qh6CpHMpGthIFStr") ] ) 
 			}
 		}
 	}
 	
 	//	Implements the rule that the argument must be a number
 	
-	fn arg_rule_must_be_number(arg_key: ~str, spec_must_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_number(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
 		
 		match val {
 			Number(_) => { 
 				Ok( true ) 
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_key_arg_must_be_number(), copy arg_key, copy spec_must_key, ~"ENt7F21pgLrisdgX") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_key_arg_must_be_number(), copy arg_key, copy spec_key, ~"ENt7F21pgLrisdgX") ] ) 
 			}
 		}
 	}
 	
 	//	Implements the rule that the argument must be a string
 	
-	fn arg_rule_must_be_string(arg_key: ~str, spec_must_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_string(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
 		
 		match val {
 			String(_) => { 
 				Ok( true )
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), copy arg_key, copy spec_must_key, ~"bRRoirXHglnOzRza") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), copy arg_key, copy spec_key, ~"bRRoirXHglnOzRza") ] ) 
 			}
 		}
 	}
 	
 	//	Implements the rule that the argument must be a list
 	
-	fn arg_rule_must_be_list(arg_key: ~str, spec_must_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_list(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
 		
 		match val {
 			List(_) => { 
 				Ok( true )
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_list(), copy arg_key, copy spec_must_key, ~"3quUP5sSihzrSikm") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_list(), copy arg_key, copy spec_key, ~"3quUP5sSihzrSikm") ] ) 
 			}
 		}
 	}
 	
 	//	Implements the rule that the argument must be a boolean
 	
-	fn arg_rule_must_be_bool(arg_key: ~str, spec_must_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_bool(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
 		
 		match val {
 			Boolean(_) => { 
 				Ok( true )
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_bool(), copy arg_key, copy spec_must_key, ~"uBORM4dQ7ovO5own") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_bool(), copy arg_key, copy spec_key, ~"uBORM4dQ7ovO5own") ] ) 
 			}
 		}
 	}
@@ -493,7 +501,7 @@ pub fn test_missing_arg() {
 		}
 		Err( err ) => {
 			let e = copy err[0];
-			match JahArgs::new( ~e).get_str(~"rule_must_key"){
+			match JahArgs::new( ~e).get_str(~"rule_key"){
 				Ok( val ) => {
 					assert!( val == Bootstrap::arg_rule_key_arg_must_exist() );
 				}
@@ -523,7 +531,7 @@ pub fn test_extra_arg() {
 		Err( errs ) => {
 			let first_err = copy errs[0];
 			let err_args = JahArgs::new( ~first_err );		
-			assert!( err_args.get_str( ~"rule_must_key" ).is_ok() );
+			assert!( err_args.get_str( ~"rule_key" ).is_ok() );
 		}
 	}
 }
@@ -531,7 +539,7 @@ pub fn test_extra_arg() {
 #[test]
 pub fn test_number_rules() {
 
-	//make a fake spec specifying the rules that apply to a number
+	//make a spec specifying the rules that apply to a number
 	let mut allowed = ~LinearMap::new();
  	allowed.insert(~"num_required_key",~[
  		Bootstrap::arg_rule_arg_must_exist().to_json(),
@@ -543,7 +551,7 @@ pub fn test_number_rules() {
 		
  	let mut spec_map = ~LinearMap::new();
  	
- 	spec_map.insert( ~"spec_must_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
+ 	spec_map.insert( ~"spec_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
  	spec_map.insert( ~"allowed", allowed.to_json() ); 	
  	
  	//supply the minimum info to pass
@@ -609,7 +617,7 @@ pub fn test_string_rules() {
  		Bootstrap::arg_rule_arg_must_be_string().to_json()
 		]);
  	let mut spec_map = ~LinearMap::new();
- 	spec_map.insert( ~"spec_must_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
+ 	spec_map.insert( ~"spec_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
  	spec_map.insert( ~"allowed", allowed.to_json() ); 	
  	
  	//supply the minimum info to pass
@@ -675,7 +683,7 @@ pub fn test_list_rules() {
  		Bootstrap::arg_rule_arg_must_be_a_list().to_json()
 		]);
  	let mut spec_map = ~LinearMap::new();
- 	spec_map.insert( ~"spec_must_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
+ 	spec_map.insert( ~"spec_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
  	spec_map.insert( ~"allowed", allowed.to_json() ); 	
  	
  	//supply the minimum info to pass
@@ -741,7 +749,7 @@ pub fn test_object_rules() {
  		Bootstrap::arg_rule_obj_must_be_object().to_json()
 		]);
  	let mut spec_map = ~LinearMap::new();
- 	spec_map.insert( ~"spec_must_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
+ 	spec_map.insert( ~"spec_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
  	spec_map.insert( ~"allowed", allowed.to_json() ); 	
  	
  	//supply the minimum info to pass
@@ -807,7 +815,7 @@ pub fn test_bool_rules() {
  		Bootstrap::arg_rule_arg_must_be_a_bool().to_json()
 		]);
  	let mut spec_map = ~LinearMap::new();
- 	spec_map.insert( ~"spec_must_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
+ 	spec_map.insert( ~"spec_key", String( ~"Y79369vsP8sFfLss" ).to_json() );		
  	spec_map.insert( ~"allowed", allowed.to_json() ); 	
  	
  	//supply the minimum info to pass
@@ -911,7 +919,7 @@ pub fn zero_length_list_allowed_args() {
 	//Hmm, the allowed list is empty, and the arg list is empty
 	let mut map = ~LinearMap::new();
 	map.insert( ~"allowed", Object( ~LinearMap::new() ) );
-	map.insert( ~"spec_must_key", String( ~"KNexOJI1uttMf7qe" ) );
+	map.insert( ~"spec_key", String( ~"KNexOJI1uttMf7qe" ) );
 	let mut zero_list_allowed_spec = JahSpec::new( map );
 	let zero_args = JahArgs::new( ~LinearMap::new() );
 	match zero_list_allowed_spec.check_args( zero_args ) {
