@@ -145,6 +145,17 @@ impl Bootstrap {
 		~"gSNKN6Ey2JmDx70W"
 	}
 	
+	fn spec_fit_fail() -> ~str {
+	
+		~"ZpWkVsXJI7T0QIZu"
+	}	
+	
+	
+	fn spec_rule_fit_fail() -> ~str {
+	
+		~"ce70aqbGm69bDmLa"
+	}
+	
  	pub fn spec_rule_error(rule_key: ~str, arg_name: ~str, spec_key: ~str, line_must_key: ~str) -> Object { 
 	 
 		let mut rule = LinearMap::new();		

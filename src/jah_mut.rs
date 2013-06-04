@@ -7,9 +7,9 @@
 //	except according to those terms.
 
 //	Here is a simple use for a rust DuplexStream.
-//	I figured out I did not need a long lived mutable map
-//	for the purpose I started writhing this, but I wen ahead
-//	and finished because I wanted to get a working model
+//	I figured out I did not need a long lived mutable map for
+//	the purpose I started writing this, but I went ahead and
+//	finished because I wanted to get a working communication model
 //	to use in the Programmable Argument Relay that I am
 //	working on at the moment.
 
@@ -56,11 +56,9 @@ impl JahMut {
 	priv fn spawn_task(parent: DuplexStream<  JahMutGetRep, JahMutReq > ) {
 	
 		do spawn {
-		
 			let mut map = ~LinearMap::new();
 			loop {
-				let req: JahMutReq = parent.recv();
-				match req {
+				match parent.recv() {
 					GetJson( key ) => {
 						match map.find( &key ) {
 							Some( json_value ) => {
