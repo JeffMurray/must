@@ -37,7 +37,6 @@ impl JahArgs {
 	
 		JahArgs { args: args }
 	}
-	
 	//	Gets the arg as a ~str
 
 	pub fn get_str( &self, arg_name: ~str ) -> Result<~str, GetArgErrorType> {

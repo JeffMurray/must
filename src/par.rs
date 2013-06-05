@@ -14,14 +14,12 @@
 
 extern mod std;
 extern mod core;
-extern mod bootstrap;
-extern mod jah_args;
 extern mod fit;
 use std::time::Timespec;
 use fit::{ ParFitable, FitComm, ParFitComm, FitOk, FitErr, FitTryFail, DoFit, ParFitCommEndChan };
-use jah_args::{ JahArgs };
 use core::comm::{ stream, Port, Chan };
 use std::comm::DuplexStream;
+use std::json::{ Object };
 use core::task::{ spawn };
 
 
@@ -91,12 +89,12 @@ struct Par {
 enum MonComm { 
 	FitStart( ~str, Timespec, ~str ),
 	FitEndOkay( ~str, Timespec, ~str ),
-	FitEndError( ~str, Timespec, ~str, JahArgs ),
+	FitEndError( ~str, Timespec, ~str, Object ),
 	FitEndTryFail( ~str, Timespec, ~str),
 	MonCommEndChan
 }
 enum ParComm {
-	ParTrans( ~str, JahArgs ),
+	ParTrans( ~str, Object ),
 	ParCommEndChan
 }
 enum ToDo {
@@ -140,7 +138,8 @@ impl Par {
 							match new_req {
 								ParTrans( t_key, args ) => {
 									//recording the start time of this fit
-									let t = FitStart( copy t_key, std::time::at_utc( std::time::get_time() ).to_timespec(), copy fit_key );
+									let ts = std::time::at_utc( std::time::get_time() ).to_timespec();
+									let t = FitStart( copy t_key, ts, copy fit_key );
 									par_plex.send( DoFit( copy t_key, copy args ) );
 									monitor.send( t );
 								}

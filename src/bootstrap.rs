@@ -11,7 +11,7 @@
 #[link(name = "bootstrap", vers = "1.0")];
 extern mod std;
 extern mod core;
-use std::json ::{Json,Object,ToJson,String};
+use std::json ::{ Object,ToJson,String };
 use core::hashmap::linear::LinearMap;
 
 //	Low Level JSON Specifications for JahSpecs, Rules and Errors that 
@@ -161,7 +161,7 @@ impl Bootstrap {
 		let mut rule = LinearMap::new();		
 		//	The main source of information about rule document that reported on arg_name
 		rule.insert( ~"rule_key", String( rule_key ).to_json() );
-		rule.insert( ~"spec_key", spec_rule_error_spec_key().to_json
+		rule.insert( ~"spec_key", spec_key.to_json() );
 		//	The name of the supplied arg_name that is at issue
 		rule.insert( ~"arg_name", String( arg_name ) );
 		//	The main source of information about the specification that reported this error
@@ -194,6 +194,13 @@ impl Bootstrap {
 	 	~"j60qzWM5fDYugKuh" 
 	 }
 	 
+	 //	This rule requires the arg to "exist" as opposed to only being "allowed"
+	 pub fn arg_rule_arg_must_exist() -> Object { 
+	 
+		let mut rule = LinearMap::new();
+		rule.insert( ~"rule_key", Bootstrap::arg_rule_key_arg_must_exist().to_json() );
+		rule
+	 }
 	 
 	 pub fn arg_spec_key_not_known_to_par() -> ~str {
 	 
@@ -212,22 +219,13 @@ impl Bootstrap {
 	 	~"DZNl64Jyib2sQgde" 
 	 }
 	 
-	 //	This rule requires the arg to "exist" as opposed to only being "allowed"
+	 //	thrown if the fit does not understand the arguments
 	 pub fn arg_spec_not_known_to_fit() -> Object { 
 	 
 		let mut rule = LinearMap::new();
-		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_not_known_to_relay().to_json() );
+		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_not_known_to_fit().to_json() );
 		rule
 	 }	 
-
-	 //	This rule requires the arg to "exist" as opposed to only being "allowed"
-	 pub fn arg_spec_arg_must_exist() -> Object { 
-	 
-		let mut rule = LinearMap::new();
-		rule.insert( ~"spec_key", Bootstrap::arg_spec_key_arg_must_exist().to_json() );
-		//	Note to self: These documents need further specification once the system is up and running
-		rule
-	 }
 	 
 	 pub fn arg_spec_key_arg_must_exist() -> ~str {
 	 
@@ -238,8 +236,7 @@ impl Bootstrap {
 	 pub fn arg_spec_arg_must_exist() -> Object { 
 	 
 		let mut rule = LinearMap::new();
-		rule.insert( ~"spec_key", Bootstrap::arg_spec_key_arg_must_exist().to_json() );
-		//	Note to self: These documents need further specification once the system is up and running
+		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_arg_must_exist().to_json() );
 		rule
 	 }
 	 	  

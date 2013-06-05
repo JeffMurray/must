@@ -14,21 +14,20 @@
 
 extern mod std;
 extern mod core;
-extern mod jah_args; 
 use std::time::Timespec;
 use std::comm::DuplexStream;
-use jah_args::{ JahArgs };
+use std::json::{ Object };
 
 //	Functionally Isolated Task (Fit)
 
 enum ParFitComm {
-	DoFit( ~str, JahArgs ),
+	DoFit( ~str, Object ),
 	ParFitCommEndChan
 }
 
 enum FitComm {
-	FitOk( ~str, Timespec, JahArgs ),
-	FitErr( ~str, Timespec, JahArgs ),
+	FitOk( ~str, Timespec, Object ),
+	FitErr( ~str, Timespec, Object ),
 	FitTryFail( ~str, Timespec )
 }
 

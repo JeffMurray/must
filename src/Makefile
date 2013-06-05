@@ -17,6 +17,8 @@ jah_spec: jah_spec.rs
 	
 clean: 
 	rm -f *.so
+	
+all: clean
 	rustc --lib bootstrap.rs -L .
 	rustc --lib jah_args.rs -L .
 	rustc --lib must.rs -L .
@@ -28,3 +30,5 @@ clean:
 	./must-tests
 	./jah_args-tests
 	./jah_spec-tests
+	rustc --lib fit.rs -L .
+	rustc --lib par.rs -L .
