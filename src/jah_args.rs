@@ -33,9 +33,9 @@ enum GetArgErrorType {
 
 impl JahArgs {
 
-	pub fn new( args: ~LinearMap<~str, Json> ) -> JahArgs {
+	pub fn new( args: ~LinearMap<~str, Json> ) -> ~JahArgs {
 	
-		JahArgs { args: args }
+		~JahArgs { args: args }
 	}
 	//	Gets the arg as a ~str
 
@@ -60,13 +60,13 @@ impl JahArgs {
 	
 	//	Gets the arg as a map
 	
-	pub fn get_map( &self, arg_name: ~str ) -> Result<Object, GetArgErrorType> {
+	pub fn get_map( &self, arg_name: ~str ) -> Result<~Object, GetArgErrorType> {
 	
 		match self.get_json_val( arg_name ) {
 			Some( v ) => {
 				match v {
 					Object( o ) => {
-						Ok( copy *o )
+						Ok( ~copy *o )
 					}
 					_ => {
 						Err( WrongDataType )
@@ -81,13 +81,13 @@ impl JahArgs {
 	
 	//	Gets the arg as a list
 	
-	pub fn get_list( &self, arg_name: ~str ) -> Result<List, GetArgErrorType> {
+	pub fn get_list( &self, arg_name: ~str ) -> Result<~List, GetArgErrorType> {
 	
 		match self.get_json_val( arg_name ) {
 			Some( v ) => {
 				match v {
 					List( l ) => {
-						Ok( copy l )
+						Ok( ~copy l )
 					}
 					_ => {
 						Err( WrongDataType )
@@ -357,7 +357,7 @@ fn test_object_arg() {
 	match args.get_map( ~"test_object" ) {
 		Ok( val ) => {
 			//make sure test_key is the same
-			match JahArgs::new( copy ~val ).get_bool( ~"test_key" ) {
+			match JahArgs::new( copy val ).get_bool( ~"test_key" ) {
 				Ok( bval ) => {
 					assert!( bval );
 				}

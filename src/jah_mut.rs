@@ -46,14 +46,14 @@ struct JahMut;
 
 impl JahMut {
 	
-	fn connect_new() -> DuplexStream< JahMutReq, JahMutGetRep > {
+	fn connect_new() -> DuplexStream<JahMutReq, JahMutGetRep> {
 	
-		let (parent, child) = DuplexStream();
-		JahMut::spawn_task(parent);
+		let ( parent, child ) = DuplexStream();
+		JahMut::spawn_task( parent );
 		child
 	}
 	
-	priv fn spawn_task(parent: DuplexStream<  JahMutGetRep, JahMutReq > ) {
+	priv fn spawn_task( parent: DuplexStream<JahMutGetRep, JahMutReq> ) {
 	
 		do spawn {
 			let mut map = ~LinearMap::new();

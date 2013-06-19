@@ -35,9 +35,6 @@
 	
 //	-Be easy to convert to and from Json Objects
 
-//	A Must holds a server issued key and revision time stamp that identifies a 
-//	version of some document.
-
 struct Must {
 
 	//	See impl Must below for the meanings of these values
@@ -98,7 +95,7 @@ impl Must{
 	
 	//	Takes the must in json form and converts it to a Must
 	
- 	pub fn from_json( must: Json ) -> Result<Must, ~[Object]> {
+ 	pub fn from_json( must: Json ) -> Result<Must, ~[~Object]> {
  	
  		match must {
  			Object( obj ) => {
@@ -111,53 +108,50 @@ impl Must{
 	}
 	
 	//Takes an Object and converts it to a Must
-	
-	pub fn from_obj( obj: Object ) -> Result<Must, ~[Object]> {
-	
+
+	pub fn from_obj( obj: Object ) -> Result<Must, ~[~Object]> {
+		
 		let must_args = JahArgs::new( ~obj ) ;
-		match must_args.get_str( ~"key" ) {
- 			Ok( key_val ) => {
- 				match must_args.get_float( ~"sec"  ) {
- 					Ok( sec_val ) => {
- 						match must_args.get_float( ~"nsec" ) {
- 							Ok(nsec_val) => {
- 								Ok( Must::copied_must( key_val, sec_val.to_i64(), nsec_val.to_i32() ) )
- 							}
- 							Err( err ) => {
-								match err {
-									MissingKey => {
-										Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"2k5bXat4lBIhehIt") ] )
-									}
-									WrongDataType => {
-										Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"nbON1bWP9U4NWFf7") ] )
-									}
-								}	
- 							}
-						}
- 					}
-					Err( err ) => {
-						match err {
-							MissingKey => {
-								Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"sec",  Bootstrap::spec_must_must_key(), ~"xSHex3PgO1VFrm5d") ] )
-							}
-							WrongDataType => {
-								Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"sec",  Bootstrap::spec_must_must_key(), ~"WDmdBc78ERtcJaZC") ] )
-							}
-						}	
-					}
- 				}
- 			}
+		let key = { match must_args.get_str( ~"key" ) {
+			Ok( key_val ) => { key_val }
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"key",  Bootstrap::spec_must_must_key(), ~"ziVrdrQE6xeIjDLj") ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"key",  Bootstrap::spec_must_must_key(), ~"ziVrdrQE6xeIjDLj" ) ] );
 					}
 					WrongDataType => {
-						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"key",  Bootstrap::spec_must_must_key(), ~"dtmIT0qQ2170Eohm") ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"key",  Bootstrap::spec_must_must_key(), ~"dtmIT0qQ2170Eohm" ) ] );
 					}
 				}	
-			} 			
- 		} 	
+			}
+		}};
+		let sec = { match must_args.get_float( ~"sec" ) {
+			Ok( sec_val ) => { sec_val }
+			Err( err ) => {
+				match err {
+					MissingKey => {
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"sec",  Bootstrap::spec_must_must_key(), ~"xSHex3PgO1VFrm5d" ) ] );
+					}
+					WrongDataType => {
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"sec",  Bootstrap::spec_must_must_key(), ~"WDmdBc78ERtcJaZC" ) ] );
+					}
+				}	
+			}
+		}};
+		let nsec = { match must_args.get_float( ~"nsec" ) {
+			Ok( nsec_val ) => { nsec_val }
+			Err( err ) => {
+				match err {
+					MissingKey => {
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"2k5bXat4lBIhehIt" ) ] );
+					}
+					WrongDataType => {
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"nbON1bWP9U4NWFf7" ) ] );
+					}
+				}	
+			}
+		}};
+		Ok( Must::copied_must( key, sec.to_i64(), nsec.to_i32() ) )
 	}
 }
 

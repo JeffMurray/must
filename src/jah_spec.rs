@@ -51,9 +51,14 @@ use bootstrap::{ Bootstrap };
 //	Holds a Json Object that specifies what arguments are allowed for this particular
 //	task, and what static rules apply to them.
 
+trait JahSpeced {
+	fn specs_in( &self ) -> ~Object;
+	fn specs_out( &self ) -> ~Object; 
+}
+
 struct JahSpec {
 
-	priv spec_args: JahArgs
+	priv spec_args: ~JahArgs
 }
 
 struct ArgRules;
@@ -65,9 +70,9 @@ impl JahSpec {
 
 	//	Create a new spec
 	
-	pub fn new( spec_args_: ~LinearMap<~str,Json> ) -> JahSpec {
+	pub fn new( spec_args_: ~LinearMap<~str,Json> ) -> ~JahSpec {
 	
-		JahSpec{ spec_args: JahArgs::new(copy spec_args_) }
+		~JahSpec{ spec_args: JahArgs::new(copy spec_args_) }
 	}
 	
 	//	Returns the must key for argument spec in this Jah or returns
@@ -88,48 +93,48 @@ impl JahSpec {
 	//	Checks that the supplied arguments are allowed, and that they conform to 
 	//	conforms to the spec.  Also checks that any required args are present
 	
-	pub fn check_args( &self, args: JahArgs ) -> Result<bool, ~[JahArgs]> {
+	pub fn check_args( &self, args: ~JahArgs ) -> Result<bool, ~[~Object]> {
 	
 		match self.check_spec() {
 			Ok( _ ) => {}
 			Err( errs ) => {
-				return Err( JahSpec::errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"s0lFEONAYynSawUd" ) ] ) )
+				return Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"s0lFEONAYynSawUd" ) ] ) 
 			}
 		}
 		match self.get_allowed() {
     		Ok( alwd ) => {
-				match self.check_rule_list( copy args, JahArgs::new( ~alwd ) ) {
+				match self.check_rule_list( copy args, JahArgs::new( alwd ) ) {
 					Ok(_) => {
 						match self.check_required( copy args ) {
 							Ok(_) => {
 								Ok( true )
 							}
 							Err( errs ) => {
-								Err( JahSpec::errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"E4S4zOP8QKA6bm62" ) ] ) )
+								Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"E4S4zOP8QKA6bm62" ) ] ) 
 							}
 						}
 					}
 					Err( errs ) => {
-						Err( JahSpec::errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"CvSaRhKZYrgqIl2q" ) ] ) )
+						Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"CvSaRhKZYrgqIl2q" ) ] ) 
 					}
 				}
     		}
     		Err( errs ) => {
-    			Err( JahSpec::errors_to_jah_args( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"kmM0kE9Isb61If3j" ) ] ) )
+    			Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"kmM0kE9Isb61If3j" ) ] ) 
 			}
 		}
 	}
 	
-	priv fn errors_to_jah_args( errs: ~[Object] ) -> ~[JahArgs] {
+	priv fn errors_to_jah_args( errs: ~[~Object] ) -> ~[~JahArgs] {
 	
 		let mut args = ~[];
 		for errs.each | err | {
-			let map: ~LinearMap<~str, Json> =  ~copy *err;
+			let map: ~LinearMap<~str, Json> =  copy *err;
 			args.push( JahArgs::new( map ) );
 		}
 		args
 	}
-	priv fn check_spec( &self ) -> Result<bool, ~[Object]> {
+	priv fn check_spec( &self ) -> Result<bool, ~[~Object]> {
 		
 		match self.spec_args.get_str( ~"spec_key" ) {
 			Ok( _ ) => {}
@@ -158,23 +163,23 @@ impl JahSpec {
 	//	Loops through the allowed args and returns a list the arg names names 
 	//	that are required
 	
-	priv fn get_required_keys(&self) -> Result<~[~str], ~[Object]> {
+	priv fn get_required_keys(&self) -> Result<~[~str], ~[~Object]> {
 	
 		match self.get_allowed() {
     		Ok( alwd ) => {
     			let mut keys = ~[];
-    			let ja = JahArgs::new( ~alwd );
+    			let ja = JahArgs::new( alwd );
 				for ja.arg_keys().each | key | {
 					match ja.get_list( copy *key ) {
 						Ok( rule_list ) => {
-							match JahSpec::list_has_rule( copy rule_list, Bootstrap::arg_rule_key_arg_must_exist() ) {
+							match JahSpec::list_has_rule( copy *rule_list, Bootstrap::arg_rule_key_arg_must_exist() ) {
 								Ok( must_exist ) => {
 									if must_exist {
 										keys.push( copy *key );
 									}
 								}
 								Err( errs ) => {
-									return Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.get_required_keys", ~"EsCOB18feSOPdIC0" ) ] ) 	
+									return Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"EsCOB18feSOPdIC0" ) ] ) 	
 								}
 							}
 						},
@@ -193,12 +198,12 @@ impl JahSpec {
 				Ok( keys )		
     		}
     		Err( errs ) => {
-    			Err( errs  + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.get_required_keys", ~"mwnGVUqBZIcqo0XX" ) ] )
+    			Err( errs  + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"mwnGVUqBZIcqo0XX" ) ] )
 			}
 		}	
 	}
 	
-	priv fn list_has_rule( rule_list: List, rule_key: ~str ) -> Result<bool, ~[Object]> {
+	priv fn list_has_rule( rule_list: List, rule_key: ~str ) -> Result<bool, ~[~Object]> {
 	
 		for rule_list.each | rule | {
 			match copy *rule {
@@ -210,7 +215,7 @@ impl JahSpec {
 							}										
 						},
 						Err( errs ) => {
-							return Err( errs  + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"JahSpec.check_args", ~"CvSaRhKZYrgqIl2q" ) ] ) 		
+							return Err( errs  + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"CvSaRhKZYrgqIl2q" ) ] ) 		
 						}
 					}
 				}
@@ -224,7 +229,7 @@ impl JahSpec {
 	
 	// Finds all the allowed args that are also required makes sure they are in args
 	
-	priv fn check_required( &self, args: JahArgs ) -> Result<bool, ~[Object]> {
+	priv fn check_required( &self, args: ~JahArgs ) -> Result<bool, ~[~Object]> {
 		
 		match self.get_required_keys() {
 			Ok( req_args ) => {
@@ -248,7 +253,7 @@ impl JahSpec {
 	
 	//	Returns a the object with all the required argument keys
 	
-	priv fn get_allowed( &self ) -> Result<Object, ~[Object]> {
+	priv fn get_allowed( &self ) -> Result<~Object, ~[~Object]> {
 		match self.spec_args.get_map( ~"allowed" ) {
 			Ok( obj ) => {
 				Ok( copy obj )
@@ -268,7 +273,7 @@ impl JahSpec {
 	
 	//	Loops through all of the rules for each allowed argument and check its rules in relation to its value
 	
-	priv fn check_rule_list( &self, args: JahArgs, allowed: JahArgs ) -> Result<bool, ~[Object]> {
+	priv fn check_rule_list( &self, args: ~JahArgs, allowed: ~JahArgs ) -> Result<bool, ~[~Object]> {
 	
 		let mut errors = ~[];
 		for args.arg_keys().each | key | {
@@ -276,7 +281,7 @@ impl JahSpec {
 				Ok( list ) => {
 					match args.get_json_val( copy *key ) {
 						Some(val) => { 
-							for JahSpec::check_rules( copy *key, copy list, copy val, self.spec_key() ).each | err_obj | {
+							for JahSpec::check_rules( copy *key, copy *list, copy val, self.spec_key() ).each | err_obj | {
 								//we only get here if there are one or more
 								//errors returned in the vector
 								errors.push( copy *err_obj );
@@ -308,9 +313,9 @@ impl JahSpec {
 	
 	//	Loops through all assigned rules for a single arg
 	//	and applyes them to the value
-	priv fn check_rules(arg_key: ~str, rules: ~[ Json ], value: Json, spec_key: ~str ) -> ~[ Object ] {
+	priv fn check_rules(arg_key: ~str, rules: ~[ Json ], value: Json, spec_key: ~str ) -> ~[ ~Object ] {
 	
-		let mut errors: ~[ Object ] = ~[ ];
+		let mut errors: ~[ ~Object ] = ~[ ];
 		for rules.each | rule | {
 			for JahSpec::check_rule(copy arg_key, copy *rule, copy value, copy spec_key ).each | error | {
 				errors.push( copy *error );
@@ -323,16 +328,16 @@ impl JahSpec {
 	//	Checks that the rule is an Object, then sends it to do_rule
 	//	along with the value to check
 	
-	priv fn check_rule( arg_key: ~str, rule: Json, value: Json, spec_key: ~str ) -> ~[Object] {
+	priv fn check_rule( arg_key: ~str, rule: Json, value: Json, spec_key: ~str ) -> ~[~Object] {
 	
 		match rule {
 			Object( ro ) => {
-				match ArgRules::do_rule(arg_key, copy *ro, value, copy spec_key ) {
+				match ArgRules::do_rule(arg_key, copy ro, value, copy spec_key ) {
 					Ok(_) => { 
 						~[] //arg_key passed, there is nothing to do
 					}, 
 					Err(err) => {
-						err + ~[ Bootstrap::reply_error_trace_info(~"jah_spec.rs", ~"JahSpec.check_rule", ~"Kerw1ihlUtNhYS5w") ]
+						err + ~[ Bootstrap::reply_error_trace_info(~"jah_spec.rs", ~"Kerw1ihlUtNhYS5w") ]
 					}
 				}
 			}
@@ -348,9 +353,9 @@ impl ArgRules {
 	//	Checks a single rule against a single arg value returns OK
 	//	if the value passes the check, otherwise Err with the errors
 	
-	pub fn do_rule( arg_key: ~str, rule: Object, val: Json, spec_key: ~str ) -> Result<bool,~[Object]> {
+	pub fn do_rule( arg_key: ~str, rule: ~Object, val: Json, spec_key: ~str ) -> Result<bool,~[~Object]> {
 
-		match ArgRules::get_rule_key( JahArgs::new( ~rule ) ) {
+		match ArgRules::get_rule_key( JahArgs::new( rule ) ) {
 			Ok ( rule_key ) => {
 				if rule_key == Bootstrap::arg_rule_key_arg_must_exist() {
 					//arg_rule_required - this is checked in JahSpec.check_required
@@ -376,13 +381,13 @@ impl ArgRules {
 
 			}
 			Err( errs ) => {
-				Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"ArgRules::do_rule", ~"jFlfv8NZAe1UzYF4" ) ] )
+				Err( errs + ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"jFlfv8NZAe1UzYF4" ) ] )
 			}
 		}
 	}
 	//	Extracts the key that identifies the rule
 	
-	pub fn get_rule_key( rule: JahArgs ) -> Result<~str, ~[Object]> {
+	pub fn get_rule_key( rule: ~JahArgs ) -> Result<~str, ~[~Object]> {
 	
 		match rule.get_str( ~"rule_key" ) {
 			Ok( rule_key ) => {
@@ -403,7 +408,7 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be an object
 	
-	fn arg_rule_must_be_object(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_object(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[~Object]> {
 		
 		match val {
 			Object(_) => {
@@ -417,7 +422,7 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be a number
 	
-	fn arg_rule_must_be_number(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_number(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[~Object]> {
 		
 		match val {
 			Number(_) => { 
@@ -431,7 +436,7 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be a string
 	
-	fn arg_rule_must_be_string(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_string(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[~Object]> {
 		
 		match val {
 			String(_) => { 
@@ -445,7 +450,7 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be a list
 	
-	fn arg_rule_must_be_list(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_list(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[~Object]> {
 		
 		match val {
 			List(_) => { 
@@ -459,7 +464,7 @@ impl ArgRules {
 	
 	//	Implements the rule that the argument must be a boolean
 	
-	fn arg_rule_must_be_bool(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[Object]> {
+	fn arg_rule_must_be_bool(arg_key: ~str, spec_key: ~str, val: Json) -> Result<bool,~[~Object]> {
 		
 		match val {
 			Boolean(_) => { 
@@ -483,7 +488,7 @@ pub fn test_must_spec() {
 	must_args.insert( ~"key", key.to_json() );
 	must_args.insert( ~"sec", t.sec.to_json() );
 	must_args.insert( ~"nsec", t.nsec.to_json() );	
-	assert!( JahSpec::new( ~Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ).is_ok() );
+	assert!( JahSpec::new( Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ).is_ok() );
 }
 
 #[test]
@@ -496,12 +501,12 @@ pub fn test_missing_arg() {
 	must_args.insert( ~"key", key.to_json() );
 	must_args.insert( ~"sec", t.sec.to_json() );
 		//param_rule_key_str_arg_must_exist()
-	match JahSpec::new( ~Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ) {
+	match JahSpec::new( Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ) {
 		Ok( _ ) => {
 			fail!();
 		}
 		Err( err ) => {
-			match err[0].get_str(~"rule_key"){
+			match JahArgs::new( copy err[0] ).get_str(~"rule_key") {
 				Ok( val ) => {
 					assert!( val == Bootstrap::arg_rule_key_arg_must_exist() );
 				}
@@ -524,12 +529,12 @@ pub fn test_extra_arg() {
 	must_args.insert( ~"sec", t.sec.to_json() );
 	must_args.insert( ~"nsec", t.nsec.to_json() );	
 	must_args.insert( ~"extra_arg", t.nsec.to_json() );
-	match JahSpec::new( ~Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ) {
+	match JahSpec::new( Bootstrap::spec_must() ).check_args( JahArgs::new( must_args ) ) {
 		Ok( _ ) => {
 			fail!();
 		}
 		Err( errs ) => {
-			let first_err = copy errs[0];
+			let first_err = JahArgs::new( copy errs[0] );
 			assert!( first_err.get_str( ~"rule_key" ).is_ok() );
 		}
 	}
@@ -570,8 +575,7 @@ pub fn test_number_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
- 			
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -591,7 +595,7 @@ pub fn test_number_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_arg_key_arg_must_be_number() );
@@ -637,7 +641,7 @@ pub fn test_string_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -657,7 +661,7 @@ pub fn test_string_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_key_must_be_string() );
@@ -703,7 +707,7 @@ pub fn test_list_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -723,7 +727,7 @@ pub fn test_list_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_be_list() );
@@ -769,7 +773,7 @@ pub fn test_object_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -789,7 +793,7 @@ pub fn test_object_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_be_object() );
@@ -827,7 +831,7 @@ pub fn test_bool_rules() {
 		Ok( _ ) => {}
 		Err( errs ) => {
 			for errs.each | err | {
-				io::println( err.to_str() );
+				io::println( JahArgs::new( copy *err ).to_str() );
 			}
 			fail!();
 		}
@@ -845,7 +849,7 @@ pub fn test_bool_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -865,7 +869,7 @@ pub fn test_bool_rules() {
  			fail!();
  		}
  		Err( errs ) => {
- 			let err = copy errs[0];
+ 			let err = JahArgs::new( copy errs[0] );
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_be_bool() );
@@ -888,7 +892,7 @@ pub fn zero_condition_spec() {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = copy errs[0];
+			let err = JahArgs::new( copy errs[0] );;
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -904,14 +908,14 @@ pub fn zero_condition_spec() {
 #[test]
 pub fn zero_condition_args() {
 
-	let must_spec = JahSpec::new( ~Bootstrap::spec_must() );
+	let must_spec = JahSpec::new( Bootstrap::spec_must() );
 	let zero_args = JahArgs::new( ~LinearMap::new() );
 	match must_spec.check_args( zero_args ) {
 		Ok( _ ) => {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = copy errs[0];
+			let err = JahArgs::new( copy errs[0] );;
  			match ArgRules::get_rule_key( err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
@@ -950,7 +954,7 @@ pub fn zero_length_list_allowed_args() {
 			fail!(); //no args can be supplied if the allowed
 		}
 		Err( errs ) => {
-			let err = copy errs[0];
+			let err = JahArgs::new( copy errs[0] );;
  			match ArgRules::get_rule_key( copy err ) {
  				Ok( key ) => {
 					io::println( err.to_str() );
@@ -976,8 +980,8 @@ pub fn spec_missing_must_key() {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = ~(copy errs[0]);
- 			match ArgRules::get_rule_key( copy *err ) {
+			let err = JahArgs::new( copy errs[0] );
+ 			match ArgRules::get_rule_key( copy err ) {
  				Ok( key ) => {
  					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
  				}

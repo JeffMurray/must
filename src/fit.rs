@@ -14,25 +14,28 @@
 
 extern mod std;
 extern mod core;
-use std::time::Timespec;
-use std::comm::DuplexStream;
 use std::json::{ Object };
+use core::owned::{ Eq };
 
 //	Functionally Isolated Task (Fit)
 
-enum ParFitComm {
-	DoFit( ~str, Object ),
+// See Par.rs for more info about what a Fit is
+
+#[deriving(Eq)]
+enum ParFitComm { 
+	DoFit( ~str, ~Object ), // ( t_key, args )
 	ParFitCommEndChan
 }
-
-enum FitComm {
-	FitOk( ~str, Timespec, Object ),
-	FitErr( ~str, Timespec, Object ),
-	FitTryFail( ~str, Timespec )
+#[deriving(Eq)]
+enum FitComm { 
+	FitOk( ~str, ~Object ), // ( t_key, args )
+	FitErr( ~str, ~Object ), // ( t_key, errors )
+	FitTryFail( ~str ),  // ( t_key )
+	FitSysErr( ~Object )  // resource fail message from Rust that breaks this fit
 }
 
 trait ParFitable {
-	fn connect( &self, par_plex: DuplexStream<FitComm, ParFitComm> );
-	fn key(&self) -> ~str;
-	fn spawnable( &self ) -> bool;
+	fn connect( &self ) -> ( Port<FitComm>, Chan<ParFitComm> );
+	fn fit_key( &self ) -> ~str;
 }
+
