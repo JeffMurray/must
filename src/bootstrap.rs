@@ -11,7 +11,7 @@
 #[link(name = "bootstrap", vers = "1.0")];
 extern mod std;
 extern mod core;
-use std::json ::{ Object, ToJson, String, List };
+use std::json ::{ Object, ToJson, String, List, Json };
 use core::hashmap::linear::LinearMap;
 
 //	Low Level JSON Specifications for JahSpecs, Rules and Errors that 
@@ -149,7 +149,7 @@ impl Bootstrap {
 		~"uJmQQbpKD9GrIAYl"
 	}
 	
-	pub fn fit_sys_err( sys_text: ~str, fit_key: ~str, file_name: ~str, line_key: ~str ) -> ~Object {
+	pub fn fit_sys_err( args: ~Object, sys_text: ~str, fit_key: ~str, file_name: ~str, line_key: ~str ) -> ~Object {
 	
 		let mut err = ~LinearMap::new();		
 		//	The main source of information about rule document that reported on arg_name
@@ -160,6 +160,7 @@ impl Bootstrap {
 		//	The key that identifies the line of code that reported the error
 		err.insert( ~"line_key", line_key.to_json() );
 		err.insert( ~"file_name", file_name.to_json() );
+		err.insert( ~"args", args.to_json() );
 		err
 	}
 		
@@ -347,11 +348,16 @@ impl Bootstrap {
 		rule
 	}
 	
-	pub fn mk_mon_err( errs: ~[Object] ) -> ~Object {
+	pub fn mk_mon_err( errs: ~[~Object] ) -> ~Object {
 	
+		let mut lst = ~[];
+		for errs.each | err | {
+			lst.push( err.to_json() );
+		}
+		
 		let mut mon_err = ~LinearMap::new();
-		mon_err.insert( ~"errs", errs.to_json() );
-		mon_err.insert( ~"spec_key", String(~"VWnPY4CStrXkk4SU").to_json() );
+		mon_err.insert( ~"errs", List( lst ).to_json() );
+		mon_err.insert( ~"spec_key", String( ~"VWnPY4CStrXkk4SU" ).to_json() );
 		mon_err
 	}
 	
@@ -361,10 +367,10 @@ impl Bootstrap {
 		
 		let mut fits = ~[];
 		{	let mut reg = ~LinearMap::new();
-			reg.insert( ~"reg_key", String(~"4E7XRuhm3Tc73Gjd").to_json() );
-			reg.insert( ~"fit_key", String(~"Zbh4OJ4uE1R1Kkfr").to_json() );
+			reg.insert( ~"reg_key", String( ~"4E7XRuhm3Tc73Gjd" ).to_json() );
+			reg.insert( ~"fit_key", String( ~"Zbh4OJ4uE1R1Kkfr" ).to_json() );
 			let mut fit_args = ~LinearMap::new();
-			fit_args.insert( ~"path", String(~"docs/must_store_0001.json").to_json() );
+			fit_args.insert( ~"path", String( ~"docs/must_store_0001.json" ).to_json() );
 			fit_args.insert( ~"num", 1u.to_json() );
 			reg.insert( ~"fit_args", fit_args.to_json() );
 			reg.insert( ~"spec_key", String( ~"IZITlVivw553sC5n" ).to_json() );

@@ -15,27 +15,25 @@
 extern mod std;
 extern mod core;
 use std::json::{ Object };
-use core::owned::{ Eq };
+use core::comm::{ ChanOne };
 
 //	Functionally Isolated Task (Fit)
-
 // See Par.rs for more info about what a Fit is
 
-#[deriving(Eq)]
 enum ParFitComm { 
-	DoFit( ~str, ~Object ), // ( t_key, args )
+	// take some args, do some work, send the results home
+	DoFit( ~Object, ChanOne<FitComm> ), // ( args, home_chan ) 
 	ParFitCommEndChan
 }
-#[deriving(Eq)]
-enum FitComm { 
-	FitOk( ~str, ~Object ), // ( t_key, args )
-	FitErr( ~str, ~Object ), // ( t_key, errors )
-	FitTryFail( ~str ),  // ( t_key )
-	FitSysErr( ~Object )  // resource fail message from Rust that breaks this fit
+
+enum FitComm { // designed to be used in a oneshot
+	FitOk( ~Object ), // (  args )
+	FitErr( ~Object ), // (  errors )
+	FitTryFail(~Object ), // ( errors )
+	FitSysErr( ~Object ) // ( errors ) resource fail message from Rust that breaks this fit
 }
 
 trait ParFitable {
-	fn connect( &self ) -> ( Port<FitComm>, Chan<ParFitComm> );
+	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> ;
 	fn fit_key( &self ) -> ~str;
 }
-
