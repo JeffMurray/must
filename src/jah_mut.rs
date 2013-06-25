@@ -10,8 +10,7 @@
 //	I figured out I did not need a long lived mutable map for
 //	the purpose I started writing this, but I went ahead and
 //	finished because I wanted to get a working communication model
-//	to use in the Programmable Argument Relay that I am
-//	working on at the moment.
+//	to use in the Programmable Argument Relay.
 
 
 //	rustc --lib jah_mut.rs -L .
@@ -54,7 +53,7 @@ struct JahMut;
 
 impl JahMut {
 	
-	fn connect_new( user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin>  ) {
+	pub fn connect_new( user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin>  ) {
 		JahMut::spawn_task( user_port, admin_port );
 	}
 	

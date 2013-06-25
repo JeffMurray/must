@@ -178,7 +178,21 @@ impl Bootstrap {
 		err.insert( ~"line_key", String( line_key ).to_json() );
 		err
  	}
- 	 		
+ 	
+ 	pub fn logic_error(rule_key: ~str, arg_name: ~str, line_key: ~str, file_name: ~str) -> ~Object { 
+	 
+		let mut err = ~LinearMap::new();		
+		//	The main source of information about rule document that reported on arg_name
+		err.insert( ~"rule_key", String( rule_key ).to_json() );
+		err.insert( ~"spec_key", String( ~"bEEA7c4Yp9Xl3pX1" ) );
+		//	The name of the supplied arg_name that is at issue
+		err.insert( ~"arg_name", String( arg_name ) );
+		//	The key that identifies the line of code that reported the error
+		err.insert( ~"line_key", String( line_key ).to_json() );
+		//	The code file name containing the line of code referred to in the trace info
+		err.insert( ~"file_name", String( file_name ) );
+		err
+ 	} 	 		
  	//	When code identifies an error it adds information about the calling fn
 
 	pub fn reply_error_trace_info(file_name: ~str, line_key: ~str) -> ~Object { 
