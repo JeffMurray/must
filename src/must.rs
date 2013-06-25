@@ -13,10 +13,6 @@
 
 #[link(name = "must", vers = "1.0")];
 
- extern mod std;
- extern mod core;
- extern mod bootstrap;
- extern mod jah_args;
  use core::rand::RngUtil;
  use std::json ::{Json,Object,ToJson};
  use core::hashmap::linear::LinearMap;

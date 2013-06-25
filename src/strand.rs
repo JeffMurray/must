@@ -23,31 +23,29 @@ use core::comm::{ oneshot, recv_one };
 use core::hashmap::linear::LinearMap;
 use core::task::spawn;
 
-// Transactions and their arguments are monitored and shuttled around to ParTs by a StrandWalker,
-// an ephemeral spawn, that is navigates a Strand of Logic to its end through a series of
-// successes or nicely handled error processing, and to an end.
+// Transactions and their arguments are monitored and shuttled around to ParTs by an ephemeral spawn 
+// called StrandWalker::go The StrandWalker takes a Strand of Logic through a series of
+// successes or nicely handled error responses to the end of a final strand it travels across.
 
 // I plan on making a lot of ParFitables, and I hope others will too.  With every new Fit, the
 // number of ways they can be combined will grow, in ways the Fit writer may not have thought of.  
 
-// A strand of logic can be encoded and decoded to Json, and will be hold a configurable 'document-level'
+// A strand of logic can be encoded and decoded to Json, and will enable a configurable 'document-level'
 // logic system for Must.  For instance one Fit might be able to produce digital signatures, but 
-// the logic strands would only include it in instances where it was needed.
+// the logic strands would only include it in instances where it was called for.
 
 // Logic in Must is an enum and so far it has:
-// OkErr( reg_key, error_strand ) => requests that the Fit associated with reg_key to be executed.
-//		if the Fit returns Ok, the StrandWalker is notified NextOk and moves to the next logic in the 
+// OkErr( reg_key, error_strand ) => requests that the Fit associated with reg_key be executed.
+//		if the Fit returns Ok, the StrandWalker is sent NextOk and moves to the next logic in the 
 //			strand
-//		if the Fit returns Err, the StrandWalker makes the error strand its current strand
-//			and begins to strand walk that.
+//		if the Fit returns Err, the StrandWalker takes the error strand and begins to walk that.
 // KeyMatch( arg_key, strand_map ) => does not call a Fit directly, rather it queries the arg_bank
 //		for a value identified by arg_key, the mapped strands are then searched for a key matching
 //		arg_bank, if a strand is found, the StrandWalker makes the matched strand the current strand, 
 //		and begins walking it.
-// It is possible there is a good reason for other logic types, but given that Fits can produce keys 
-// using there own key value logic, and that strands can be configured to use those fits and 
-// match those keys, I would like to hear that reason.
-
+// It is possible there is a good reason for logic types other than OkErr and KeyMatch, but given 
+// that Fits can produce keys using there own key value logic, and that strands can be configured 
+// to use those fits and match those keys, I would like to hear that reason.
 
 type Strand = ~[Logic];
 

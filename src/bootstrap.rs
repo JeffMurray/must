@@ -9,10 +9,13 @@
 //	rustc --lib bootstrap.rs -L .
 
 #[link(name = "bootstrap", vers = "1.0")];
+
 extern mod std;
 extern mod core;
 use std::json ::{ Object, ToJson, String, List, Json };
 use core::hashmap::linear::LinearMap;
+
+
 
 //	Low Level JSON Specifications for JahSpecs, Rules and Errors that 
 //	need to be used prior to the master b+tree being up and running **
