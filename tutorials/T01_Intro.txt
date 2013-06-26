@@ -11,7 +11,7 @@ Introduction
 	-Smalltalk
 	-c
 	-c++
-	-Visual Basic
+	-Visual Basic (Access yada yada)
 	-vb.net
 	-java
 	-Lua (durring my WoW phase)
@@ -21,18 +21,27 @@ Introduction
 	-While I like java it is not open source and I like it less 
 		after Oracle bought it
 		
-	-.Net is not open source..
+	-.Net is not open source and Microsoft is clueless.
 	
 	-Programming with c and c++ is difficult to use for large projects. 
 	
-	-Rust is 100% Open Source
+	-Google is making go, but lets not take all the eggs from, one set of
+		and put them in another
+		
+	-Rust is 100% Open Source, which means Rust's documentation is awesome..
 	
 	-Rust's super picky compiler and structure enforces safe programming 
 		practices while leaving executable code that is about as fast
 		as c++
 		
-	-Rust's documentation is awesome, no really.
+	-Rust's robust robust task spawning and communication channels are powerful
 	
+	-
+	 
 	-The Rust Tutorial http://www.rust-lang.org/
-
+	
+* Who will program in Rust?  I think there are a lot of disgruntled java 
+		and .net programmers that have reason to pick it up.  It will be
+		fun to watch.
+		
 * To learn Rust, I'll try to write Must, and make Rust tutorials

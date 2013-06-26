@@ -12,12 +12,15 @@
 //	See must_test.rs for another example of how to use a Must.
 
 #[link(name = "must", vers = "1.0")];
-
- use core::rand::RngUtil;
- use std::json ::{Json,Object,ToJson};
- use core::hashmap::linear::LinearMap;
- use bootstrap::Bootstrap;
- use jah_args::{ JahArgs, MissingKey, WrongDataType };
+extern mod std;
+extern mod core;
+extern mod bootstrap;
+extern mod jah_args;
+use core::rand::RngUtil;
+use std::json ::{Json,Object,ToJson};
+use core::hashmap::linear::LinearMap;
+use bootstrap::Bootstrap;
+use jah_args::{ JahArgs, MissingKey, WrongDataType };
  
 //	Must key goals:
 

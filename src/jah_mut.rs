@@ -21,7 +21,9 @@
 
 extern mod std;
 extern mod core;
-use std::json ::{ Json, String, Number, Boolean };
+extern mod jah_args;
+use jah_args::{ JahArgs };
+use std::json ::{ Json, ToJson, String, Number, Boolean };
 use core::hashmap::linear::LinearMap;
 use core::task::spawn;
 use std::comm::DuplexStream;
@@ -39,6 +41,7 @@ enum JahMutReq {
 enum JahMutAdmin {
 	InsertOrUpdate( ~str, Json ),
 	LoadMap( ~LinearMap<~str, Json> ),
+	MergeArgs( ~LinearMap<~str, Json> ),
 	Remove( ~str ),
 	Release
 }
@@ -53,8 +56,11 @@ struct JahMut;
 
 impl JahMut {
 	
-	pub fn connect_new( user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin>  ) {
+	pub fn connect_new() -> ( Chan<JahMutReq>, Chan<JahMutAdmin> ) {
+		let ( admin_port, admin_chan ) = stream();
+		let ( user_port, user_chan ) = stream();
 		JahMut::spawn_task( user_port, admin_port );
+		( user_chan, admin_chan )
 	}
 	
 	priv fn spawn_task(  user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin> ) {
@@ -91,6 +97,15 @@ impl JahMut {
 								}	
 								LoadMap( new_map ) => {
 									map = new_map;
+								}
+								MergeArgs( arg_map ) => {
+									let jah = JahArgs::new( arg_map );
+									for jah.arg_keys().each | key | {
+										if map.contains_key( key ) {
+											map.remove( key );
+										}
+										map.insert( copy *key, jah.get_json_val( copy *key ).to_json() );	
+									}
 								}
 								Release	=> {
 									release = true;
@@ -182,9 +197,7 @@ impl JahMut {
 #[test]
 fn test_insert_or_update(){
 
-	let (admin_port, admin_chan ) = stream();
-	let (user_port, user_chan ) = stream();
-	JahMut::connect_new( user_port, admin_port );
+	let ( user_chan, admin_chan ) = JahMut::connect_new();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match {	let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );
@@ -217,9 +230,7 @@ fn test_insert_or_update(){
 #[test]
 fn test_data_conversions(){
 
-	let (admin_port, admin_chan ) = stream();
-	let (user_port, user_chan ) = stream();
-	JahMut::connect_new( user_port, admin_port );
+	let ( user_chan, admin_chan ) = JahMut::connect_new();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match {	let ( c, p ) = oneshot::init();
 		user_chan.send( GetStr( ~"is", c ) );
@@ -270,9 +281,7 @@ fn test_data_conversions(){
 #[test]
 fn test_remove(){
 
-	let (admin_port, admin_chan ) = stream();
-	let (user_port, user_chan ) = stream();
-	JahMut::connect_new( user_port, admin_port );
+	let ( user_chan, admin_chan ) = JahMut::connect_new();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match { let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );
@@ -301,9 +310,7 @@ fn test_remove(){
 #[test]
 fn test_get_map(){
 
-	let (admin_port, admin_chan ) = stream();
-	let (user_port, user_chan ) = stream();
-	JahMut::connect_new( user_port, admin_port );
+	let ( user_chan, admin_chan ) = JahMut::connect_new();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match { let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );

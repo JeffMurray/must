@@ -52,7 +52,7 @@ use core::task::{ spawn };
 //	Pronounce it Part or Par Tee 
 
 struct ParT {
-	port: SharedChan<ParInComm>,
+	chan: SharedChan<ParInComm>,
 	par: ~Par
 }
 
@@ -150,7 +150,7 @@ impl Par {
 			}};
 		let ( good_by_port, good_by_chan ) = stream();
 		let fit_ch = SharedChan( fit_chan );
-		let sh_good_by_chan = SharedChan( good_by_chan );
+		let good_by_chan = SharedChan( good_by_chan );
 		do spawn  {
 			let mut current_spawns = 0u;
 			loop {
@@ -163,13 +163,13 @@ impl Par {
 							good_by_port.recv(); // spawn is saying good-by
 							current_spawns -= 1;		
 						},
-						RecvInChan => {
+						RecvInPort => {
 							let new_req = in_port.recv();
 							current_spawns += 1;
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									let spawn_chan = Par::go();
-									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, sh_good_by_chan.clone(), current_spawns ) );
+									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
 								ParCommEndChan => { 
 									//I am considering letting spawned tasks finish

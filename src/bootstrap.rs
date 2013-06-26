@@ -367,6 +367,8 @@ impl Bootstrap {
 	
 	pub fn mk_mon_err( errs: ~[~Object] ) -> ~Object {
 	
+		// Ahh how faint errors push themselves out
+		// at least mk_mon_err is only for rare errors
 		let mut lst = ~[];
 		for errs.each | err | {
 			lst.push( err.to_json() );

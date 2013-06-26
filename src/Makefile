@@ -1,19 +1,3 @@
-
-               
-bootstrap: bootstrap.rs
-	rustc --lib bootstrap.rs -L .
-
-must: must.rs
-	rustc --lib must.rs -L .
-	
-must_test: bootstrap.rs
-	rustc must_test.rs -L .
-	
-jah_args: jah_args.rs
-	rustc --lib jah_args.rs -L .
-
-jah_spec: jah_spec.rs
-	rustc --lib jah_spec.rs -L .	
 	
 clean: 
 	rm -f *.so
