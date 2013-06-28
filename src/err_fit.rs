@@ -22,22 +22,18 @@ use core::comm::{ stream, Port, Chan };  //, SharedChan
 use std::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
 use bootstrap::{ Bootstrap };
 use core::hashmap::linear::LinearMap;
-use fit::{ ParFitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk};  //, FitSysErr, FitErr, FitComm, FitTryFail 
+use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk};  //, FitSysErr, FitErr, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced }; 
 use jah_args::{ JahArgs };
 
 //Implements an append only JSON writer that takes a streamable json map and 
 //calculates and writes some system JSONAppendReply variables to an accounting doc 
 struct ErrFit {
-	priv settings: ~Object
-};
+	settings: ~Object
+}
 	
-impl ParFitable for ErrFit {
+impl Parfitable for ErrFit {
 
-	fn new( settings: ~Object ) -> ~ErrFit {
-		settings = settings;
-	}
-	
 	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
 		let ( in_port, in_chan ) = stream();
@@ -51,7 +47,6 @@ impl ParFitable for ErrFit {
 							//the fit.  Hopefully there will be associated documentation in 
 							//the Must Document System
 	}
-	
 }
 
 impl JahSpeced for ErrFit {
@@ -84,10 +79,6 @@ impl JahSpeced for ErrFit {
 }
 
 impl ErrFit {
-
-	fn new() -> ~ErrFit {
-		~ErrFit
-	}
 
 	//The Par always call go() using spawn because go does not exit  
 	//unless the channel sends a request with is_stop_order set to true

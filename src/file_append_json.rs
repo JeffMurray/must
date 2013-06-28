@@ -40,6 +40,7 @@ pub struct FileAppendJSON {
 	
 impl Parfitable for FileAppendJSON {
 
+
 	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
 		let ( in_port, in_chan ) = stream();
