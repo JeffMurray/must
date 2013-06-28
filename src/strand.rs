@@ -124,7 +124,7 @@ impl Ribosome {
 								};
 							match val {
 								Some( key ) => { 
-									strand = copy Ribosome::get_strand( strand_map.get_strand_key( key ) );
+									strand = Ribosome::get_strand( strand_map.get_strand_key( key ) );
 									pos = 0;
 								} None => {
 									rib_chan.send( Err( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy args_key, ~"euG3S9MfQQmlRe6B", ~"strand.rs" ) ) );
@@ -142,7 +142,7 @@ impl Ribosome {
 					NextErr => {
 						match copy strand[ pos ] {
 							OkErr( _ , err_strand_key ) => {
-								strand = copy Ribosome::get_strand( err_strand_key );
+								strand = Ribosome::get_strand( err_strand_key );
 								pos = 0;
 							} 
 							_ => {
@@ -166,7 +166,17 @@ impl Ribosome {
 		//once the user interface us up and running
 		match strand_key {
 			//the start strand in Must Document System Object
-			~"UWmoVWUMfKsL8oyr" => { ~[ Ribosome::first_obj_spec_match() ] }			
+			~"UWmoVWUMfKsL8oyr" => { ~[ {
+				let mut mapped_strands =  ~LinearMap::new();
+					//I can only do add document with this spec at the moment
+					mapped_strands.insert( ~"uHSQ7daYUXqUUPSo", ~"0loMIC2O3UW1yuTW" );
+					
+					let strand_map = ~StrandKeyMap {
+							mapped_strands: copy mapped_strands,
+							no_match_strand_key: ~"DROOg7Vt2GXiVl00"
+						};
+					KeyMatch( ~"spec_key", strand_map )			
+				 	} ] }			
 			//Add document
 			~"0loMIC2O3UW1yuTW" => { ~[ OkErr( ~"S68yWotrIh06IdE8", ~"DROOg7Vt2GXiVl00" ) ] }
 			//Error println to terminal
@@ -189,19 +199,6 @@ impl Ribosome {
 			//Default
 			_ => { ~[] }
 		}
-	}
-	
-	priv fn first_obj_spec_match() -> Logic  {
-	
-		let mut mapped_strands =  ~LinearMap::new();
-		//I can only do add document with this spec at the moment
-		mapped_strands.insert( ~"uHSQ7daYUXqUUPSo", ~"0loMIC2O3UW1yuTW" );
-		
-		let strand_map = ~StrandKeyMap {
-				mapped_strands: copy mapped_strands,
-				no_match_strand_key: ~"DROOg7Vt2GXiVl00"
-			};
-		KeyMatch( ~"spec_key", strand_map )
 	}
 }
 

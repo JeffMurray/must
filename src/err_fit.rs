@@ -28,10 +28,16 @@ use jah_args::{ JahArgs };
 
 //Implements an append only JSON writer that takes a streamable json map and 
 //calculates and writes some system JSONAppendReply variables to an accounting doc 
-struct ErrFit;
+struct ErrFit {
+	priv settings: ~Object
+};
 	
 impl ParFitable for ErrFit {
 
+	fn new( settings: ~Object ) -> ~ErrFit {
+		settings = settings;
+	}
+	
 	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
 		let ( in_port, in_chan ) = stream();
@@ -45,6 +51,7 @@ impl ParFitable for ErrFit {
 							//the fit.  Hopefully there will be associated documentation in 
 							//the Must Document System
 	}
+	
 }
 
 impl JahSpeced for ErrFit {
@@ -104,57 +111,3 @@ impl ErrFit {
 		}
 	}
 }
-
-/*
-#[test]
-fn test_write_and_read() {
-	let fit = ~FileAppendJSON{ 
-		file_path: ~"test.json",
-		file_num: 0
-		};
-		
-	let ( port, chan ) = fit.connect();
-	let mut doc = ~LinearMap::new();
-	doc.insert( ~"message",String( ~"하세요!" ) );
-	let mut args = ~LinearMap::new();
-	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
-	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-	args.insert( ~"must", Must::new_must().to_json() );	
-	args.insert( ~"doc", doc.to_json() );
-	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-
-	chan.send( DoFit( ~"p5M8DIzbKWYhKR5W", copy args ) );
-	let slice_len = JahArgs::new( copy args ).to_str().len();
-	let rval = {
-		match port.recv() {
-			FitOk( t_key, rval ) => {
-				assert!( t_key == ~"p5M8DIzbKWYhKR5W" );
-				rval
-			}
-			FitSysErr( err ) => {
-				io::println( JahArgs::new( err ).to_str() );
-				chan.send( ParFitCommEndChan );
-				fail!();
-			}
-			FitErr( t_key, err ) => {
-				io::println( JahArgs::new( err ).to_str() );
-				chan.send( ParFitCommEndChan );
-				fail!();
-			}		
-			_ => { chan.send( ParFitCommEndChan ); fail!(); }
-		}};
-	let ospecs = copy *fit.specs_out();
-	let ospec = copy *ospecs.find(&~"ma2snwuG8VPGxY8z").get();
-	match ospec {
-		Object( out_spec ) => {
-			let jah = JahArgs::new( rval );
-			assert!( JahSpec::new( out_spec ).check_args( copy jah ).is_ok() );
-			let slice = JahArgs::new( ~jah.get_map( ~"slice" ).get() );
-			let len: uint = slice.get_float( ~"len" ).get().to_uint();
-			assert!( len == slice_len );
-		}
-		_ => { fail!(); }
-	}
-	chan.send( ParFitCommEndChan );
-}
-*/

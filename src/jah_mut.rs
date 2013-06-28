@@ -57,6 +57,7 @@ struct JahMut;
 impl JahMut {
 	
 	pub fn connect_new() -> ( Chan<JahMutReq>, Chan<JahMutAdmin> ) {
+	
 		let ( admin_port, admin_chan ) = stream();
 		let ( user_port, user_chan ) = stream();
 		JahMut::spawn_task( user_port, admin_port );
@@ -64,6 +65,7 @@ impl JahMut {
 	}
 	
 	priv fn spawn_task(  user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin> ) {
+	
 		do spawn {
 			let mut map = ~LinearMap::new();
 			loop {

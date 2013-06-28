@@ -16,7 +16,7 @@ extern mod std;
 extern mod core;
 extern mod fit;
 use std::time::Timespec;
-use fit::{ ParFitable, DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
+use fit::{ Parfitable, DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
 use std::json::{ Object };
 use core::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use core::task::{ spawn };
@@ -47,23 +47,14 @@ use core::task::{ spawn };
 //	-number of nanoseconds: remaining after adding the number of seconds, that it took for the fit to send back its reply  
 //	-number of concurrent spawns: including this one, that were active in the relay at the time of starting the fit.
 
-//	T = Terminal
-//	ParT: holds a "live" instance of a Par
-//	Pronounce it Part or Par Tee 
-
-struct ParT {
-	chan: SharedChan<ParInComm>,
-	par: ~Par
-}
-
 struct Par {
 	priv spawn_cap: uint,
-	priv fit: ~ParFitable
+	priv fit: ~Parfitable
 }
 
 enum ParInComm {
 	ParTrans( ~Object, ChanOne<FitOutcome> ), // ( t_key, args )
-	ParCommEndChan
+	ParCommEndChan // TODO: move this to an admin channel
 }
 
 enum SpawnComm {
@@ -86,7 +77,7 @@ enum ToDo {
 
 impl Par {
 
-	fn new( spawn_cap: uint, fit: ~ParFitable ) -> ~Par {
+	fn new( spawn_cap: uint, fit: ~Parfitable ) -> ~Par {
 	
 		~Par {
 			spawn_cap: spawn_cap,
@@ -143,7 +134,6 @@ impl Par {
 	priv fn spawn_and_run( &self, in_port: Port<ParInComm> ) -> Result<bool, ~Object> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
-		
 		let fit_chan = { match self.fit.connect() {
 			Ok( fc ) => { fc }
 			Err( errs ) => { return Err( errs ) }
@@ -182,7 +172,6 @@ impl Par {
 					}
 				}
 			}
-			
 		}
 		Ok( true )
 	}

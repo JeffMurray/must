@@ -167,6 +167,11 @@ impl Bootstrap {
 		err
 	}
 		
+	pub fn part_does_not_exist() -> ~str {
+		
+		~"3S5UX55Q84zKqx5o"		
+	}
+	
  	pub fn spec_rule_error(rule_key: ~str, arg_name: ~str, spec_key: ~str, line_key: ~str) -> ~Object { 
 	 
 		let mut err = ~LinearMap::new();		
@@ -365,9 +370,10 @@ impl Bootstrap {
 		rule
 	}
 	
+	//packages 1 or more errors
 	pub fn mk_mon_err( errs: ~[~Object] ) -> ~Object {
 	
-		// Ahh how faint errors push themselves out
+		// Ahh how faint design errors push themselves out
 		// at least mk_mon_err is only for rare errors
 		let mut lst = ~[];
 		for errs.each | err | {

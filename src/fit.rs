@@ -33,7 +33,7 @@ enum FitComm { // designed to be used in a oneshot
 	FitSysErr( ~Object ) // ( errors ) resource fail message from Rust that breaks this fit
 }
 
-trait ParFitable {
+trait Parfitable {
 	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> ;
 	fn fit_key( &self ) -> ~str;
 }

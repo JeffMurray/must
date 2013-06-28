@@ -25,7 +25,7 @@ use std::json::{ Object, ToJson, PrettyEncoder, String, List };//,Number, Json
 use bootstrap::{ Bootstrap };
 use std::serialize::Encodable;
 use core::hashmap::linear::LinearMap;
-use fit::{ ParFitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr}; //, FitComm, FitTryFail 
+use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr}; //, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
 use must::{ Must };
@@ -38,7 +38,7 @@ pub struct FileAppendJSON {
 	priv file_location_args: ~Object
 }
 	
-impl ParFitable for FileAppendJSON {
+impl Parfitable for FileAppendJSON {
 
 	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
@@ -90,10 +90,6 @@ impl JahSpeced for FileAppendJSON {
 }
 
 impl FileAppendJSON {
-
-	fn new( file_location_args: ~Object ) -> ~FileAppendJSON {
-		~FileAppendJSON{ file_location_args: copy file_location_args }
-	}
 	
 	//Implements a sequential writer for single Must controlled file
 
