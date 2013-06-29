@@ -35,7 +35,7 @@ use must::{ Must };
 //	The Fit then calculates and sends slice info or errors through a oneshot it received with the args  
 
 pub struct FileAppendJSON {
-	priv file_location_args: ~Object
+	file_location_args: ~Object
 }
 	
 impl Parfitable for FileAppendJSON {
