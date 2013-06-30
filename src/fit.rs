@@ -29,11 +29,11 @@ enum ParFitComm {
 enum FitComm { // designed to be used in a oneshot
 	FitOk( ~Object ), // (  args )
 	FitErr( ~Object ), // (  errors )
-	FitTryFail(~Object ), // ( errors )
 	FitSysErr( ~Object ) // ( errors ) resource fail message from Rust that breaks this fit
 }
 
 trait Parfitable {
-	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> ;
-	fn fit_key( &self ) -> ~str;
+	pub fn new( config: ~Object ) -> ~Self;
+	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> ;
+	pub fn fit_key( &self ) -> ~str;
 }

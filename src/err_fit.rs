@@ -34,14 +34,19 @@ struct ErrFit {
 	
 impl Parfitable for ErrFit {
 
-	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
+	pub fn new( settings: ~Object ) -> ~ErrFit {
+	
+		~ErrFit { settings: settings }
+	}
+	
+	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
 		let ( in_port, in_chan ) = stream();
 		self.go( in_port );
 		Ok( in_chan )
 	}
 	
-	fn fit_key( &self ) -> ~str {
+	pub fn fit_key( &self ) -> ~str {
 	
 		~"EHR6DFySwtSHzlb2" //unique randomly-generated id identifying the code implementing 
 							//the fit.  Hopefully there will be associated documentation in 

@@ -48,8 +48,7 @@ use core::task::{ spawn };
 //	-number of concurrent spawns: including this one, that were active in the relay at the time of starting the fit.
 
 struct Par {
-	priv spawn_cap: uint,
-	priv fit: ~Parfitable
+	priv spawn_cap: uint
 }
 
 enum ParInComm {
@@ -77,18 +76,17 @@ enum ToDo {
 
 impl Par {
 
-	fn new( spawn_cap: uint, fit: ~Parfitable ) -> ~Par {
+	pub fn new( spawn_cap: uint ) -> ~Par {
 	
 		~Par {
 			spawn_cap: spawn_cap,
-			fit: fit
 		}
 	}
 	
-	fn connect( &self) -> Result<Chan<ParInComm>, ~Object> {
+	pub fn connect( &self, fit_chan: Chan<ParFitComm> ) -> Result<Chan<ParInComm>, ~Object> {
 	
 		let (in_port, in_chan) = stream();
-		match self.spawn_and_run( in_port ) {
+		match self.spawn_and_run( in_port, fit_chan ) {
 			Ok( _ ) => {
 				Ok( in_chan )
 			}
@@ -131,13 +129,9 @@ impl Par {
 		return in_chan; 
 	}
 	
-	priv fn spawn_and_run( &self, in_port: Port<ParInComm> ) -> Result<bool, ~Object> {
+	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~Object> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
-		let fit_chan = { match self.fit.connect() {
-			Ok( fc ) => { fc }
-			Err( errs ) => { return Err( errs ) }
-			}};
 		let ( good_by_port, good_by_chan ) = stream();
 		let fit_ch = SharedChan( fit_chan );
 		let good_by_chan = SharedChan( good_by_chan );

@@ -26,4 +26,5 @@ all: clean
 	rustc --lib err_fit.rs -L .
 	rustc --lib strand.rs -L .
 	rustc strand.rs --test -o strand-tests -L .
-	./strand-tests	
+	./strand-tests
+	rustc --lib parts.rs -L .	

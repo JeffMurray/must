@@ -31,17 +31,21 @@ use jah_args::{ JahArgs };
 use must::{ Must };
 
 //	FileAppendJSON receives a document through ParFitComm and appends it to the end of the file described in
-//	self.file_location_args. 
+//	self.file_args. 
 //	The Fit then calculates and sends slice info or errors through a oneshot it received with the args  
 
 pub struct FileAppendJSON {
-	file_location_args: ~Object
+	file_args: ~Object
 }
 	
 impl Parfitable for FileAppendJSON {
 
-
-	fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
+	pub fn new( settings: ~Object ) -> ~FileAppendJSON {
+	
+		~FileAppendJSON { file_args: settings }
+	}
+	
+	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
 	
 		let ( in_port, in_chan ) = stream();
 		match self.go( in_port ) {
@@ -50,7 +54,7 @@ impl Parfitable for FileAppendJSON {
 		}
 	}
 	
-	fn fit_key( &self ) -> ~str {
+	pub fn fit_key( &self ) -> ~str {
 	
 		~"S68yWotrIh06IdE8" //unique randomly-generated id identifying the code implementing 
 							//the fit.  Hopefully there will be associated documentation in 
@@ -129,7 +133,7 @@ impl FileAppendJSON {
 					} 
 				}
 				None => {
-					return Err( Bootstrap::fit_sys_err( copy self.file_location_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
+					return Err( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
 				}
 			}};					
 		do spawn {	
@@ -218,7 +222,7 @@ impl FileAppendJSON {
 	
 	fn get_startup_args( &self ) -> Result<( ~str, uint ), ~Object > {
 	
-		let args = JahArgs::new( copy self.file_location_args );
+		let args = JahArgs::new( copy self.file_args );
 		let spec = JahSpec::new( self.arg_out() );
 		match spec.check_args( copy args ) {
 			Ok( _ ) => { }
@@ -236,7 +240,7 @@ impl FileAppendJSON {
 #[test]
 fn test_write_and_read() {
 	let fit = ~FileAppendJSON{ 
-		file_location_args: {
+		file_args: {
 			let mut startup_args = ~LinearMap::new();
 			startup_args.insert( ~"path", String(~"test.json").to_json() );
 			startup_args.insert( ~"num", 1u.to_json() );
@@ -261,7 +265,6 @@ fn test_write_and_read() {
 	args.insert( ~"must", Must::new_must().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-
 	let rval = match { let ( c, p ) = oneshot::init();
 		fit_chan.send( DoFit( copy args, c ) );
 		recv_one( p )
@@ -277,9 +280,6 @@ fn test_write_and_read() {
 		FitErr( err ) => {
 			io::println( JahArgs::new( err ).to_str() );
 			fail!();
-		}		
-		_ => { 
-			fail!(); 
 		}};
 	let ospecs = copy *fit.specs_out();
 	let ospec = copy *ospecs.find(&~"ma2snwuG8VPGxY8z").get();

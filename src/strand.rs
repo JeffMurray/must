@@ -65,7 +65,7 @@ struct StrandKeyMap {
 struct Ribosome; 
 
 type MappedStrands = ~LinearMap<~str, ~str>; // match_key, strand_key
-type LiveStrands = ~LinearMap<~str, Strand>; // match_key, strand
+//type LiveStrands = ~LinearMap<~str, Strand>; // match_key, strand
 
 enum LogicInComm {
 	NextOk,
@@ -98,6 +98,9 @@ impl Ribosome {
 
 	fn go( strand_key: ~str, arg_bank: Chan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
 	
+		// Finds the Strand of Logic using strand_key and then calls Parfitables and accumulates an arg_bank
+		// that can be used to satisfy jah_spec requirements of Fits while working its way over the strands.
+		
 		let ( rib_port, s1_chan ) = stream();
 		let ( s2_port, rib_chan ) = stream();
 		do spawn {
@@ -211,13 +214,13 @@ fn various() {
 	let ( port, chan ) = Ribosome::go( ~"o88KanesoJ6J19uN" , arg_bank_chan );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 1" ) }
-		Err( err ) => { fail!() }
+		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 2" ) }
-		Err( err ) => { fail!() }		
+		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}	
 	chan.send( NextOk );
@@ -234,8 +237,8 @@ fn various() {
 	}
 	chan.send( NextOk );
 	match port.recv() {
-		DoFit( _ ) => { fail!() }
-		Err( err ) => { fail!() }		
+		DoFit( key ) => { io::println( key ); fail!() }
+		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> {  }	
 	}	
 	admin_chan.send( Release );
