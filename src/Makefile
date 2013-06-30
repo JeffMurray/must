@@ -28,3 +28,5 @@ all: clean
 	rustc strand.rs --test -o strand-tests -L .
 	./strand-tests
 	rustc --lib parts.rs -L .	
+	rustc parts.rs --test -o parts-tests -L .
+	./parts-tests

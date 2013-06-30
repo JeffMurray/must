@@ -33,9 +33,9 @@ use core::task::{ spawn };
 //  ParTs is the place where live Parfitables and their channels can be loaded and accessed 
 //	ParTs::connect() serves up a tuple of chans that
 //	allow accessing the various Fits:
-// * admin chan is used for loading the live (called go) Fits.
-// * user channel receives a key identifying the Fit, and replies with a oneshot
-// 		for the BustBank Cell to send the arguments and receive the results.  See must_bank.rs
+// * admin chan is used for loading the live Fits.
+// * user channel receives a key identifying the Fit instance, and replies with a oneshot
+// 		to send arguments and receive results.  See must_bank.rs for a place it is used.
 
 //	T = Terminal
 //	ParT: holds shared channel to a "live" instance of a Par
@@ -58,7 +58,7 @@ enum ParTOutComm {
 
 enum ParTInAdminComm {
 	AddParT( ~str, ChanOne<Result< bool, ~Object >> ), // ( reg_key, result_chan ),
-	PartsRelease
+	ParTsRelease
 }
 
 impl ParTs {
@@ -88,6 +88,10 @@ impl ParTs {
 							}
 						},
 						ParTsRelease => {
+							for parts.each |&(_, part)| {
+								let chan = part.chan.clone();
+								chan.send( ParCommEndChan );
+							}
 							break_again = true;
 							break;
 						}
@@ -188,3 +192,18 @@ impl ParTs {
 		}
 	}	
 }
+
+#[test]
+fn various() {
+	
+	let ( user_chan, admin_chan ) = ParTs::connect();
+	match {	let ( c, p ) = oneshot::init();
+			admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) );
+			recv_one( p )
+		} {
+			Ok( _ ) => {}
+			Err( _ ) => { fail!(); }
+	}
+	admin_chan.send( ParTsRelease );
+}	
+
