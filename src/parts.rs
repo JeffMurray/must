@@ -16,15 +16,19 @@ extern mod std;
 extern mod core;
 extern mod par;
 extern mod fit;
+extern mod bootstrap;
+extern mod must;
 //excuse me while I load the fits here for now.
 extern mod file_append_json;
 extern mod err_fit;
-extern mod bootstrap;
-use bootstrap::{ Bootstrap };
+
+
 use err_fit::{ ErrFit };
 use file_append_json::{ FileAppendJSON };
-use par::{ Par, ParInComm, ParCommEndChan };
-use fit::{ Parfitable, ParFitComm };
+use par::{ Par, ParInComm, ParTrans, ParCommEndChan, FitOutcome };
+use fit::{ Parfitable, ParFitComm, FitOk, FitErr, FitSysErr };
+use bootstrap::{ Bootstrap };
+use must::{ Must };
 use core::hashmap::linear::LinearMap;
 use std::json::{ Object, String, ToJson };
 use core::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
@@ -102,7 +106,7 @@ impl ParTs {
 					recvd = true;
 					let usr_req: ParTInComm = user_port.recv();
 					match usr_req {
-						GetParTChan( reg_key, par_chan_one ) => {
+						GetParTChan( reg_key, par_chan_one ) => { 
 							let opt_part = parts.find( &reg_key );
 							match opt_part {
 								Some( part ) => {
@@ -130,7 +134,7 @@ impl ParTs {
 		do spawn {
 			let chan_one: ChanOne<ParTOutComm> = port.recv();
 			let ( c, p ) = oneshot::init();
-			chan_one.send( ParTChan( c ) );
+			chan_one.send( ParTChan( c ) ); // ChanOne<ParInComm>
 			par_chan.send( recv_one( p ) );
 		}
 		chan
@@ -194,7 +198,7 @@ impl ParTs {
 }
 
 #[test]
-fn various() {
+fn various_parts() {
 	
 	let ( user_chan, admin_chan ) = ParTs::connect();
 	match {	let ( c, p ) = oneshot::init();
@@ -203,6 +207,46 @@ fn various() {
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
+	}
+	
+	match {	let ( c, p ) = oneshot::init();
+			admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) );
+			recv_one( p )
+		} {
+			Ok( _ ) => {}
+			Err( _ ) => { fail!(); }
+	}
+	
+	
+	let mut doc = ~LinearMap::new();
+	doc.insert( ~"message",String( ~"Hello from inside ParTs::connect()!" ) );
+	let mut args = ~LinearMap::new();
+	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
+	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
+	args.insert( ~"must", Must::new_must().to_json() );	
+	args.insert( ~"doc", doc.to_json() );
+	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+	let fo: FitOutcome = match { let ( c, p ) = oneshot::init();
+		user_chan.send( GetParTChan( ~"S68yWotrIh06IdE8", c ) ); // ChanOne<ParTOutComm>
+		recv_one( p )
+		} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
+				let ( c2, p2 ) = oneshot::init();
+				part_chan.send( ParTrans( copy args , c2 ) ); // ChanOne<ParTOutComm>
+				recv_one( p2 )
+			} 
+			ParTErr( _ ) => { fail!(); } // spec VWnPY4CStrXkk4SU
+		};
+	match copy fo.outcome {
+		FitOk( _ ) => {
+		}
+		FitSysErr( _ ) => {
+			//io::println( JahArgs::new( err ).to_str() );
+			fail!();
+		}
+		FitErr( _ ) => {
+			//io::println( JahArgs::new( err ).to_str() );
+			fail!();
+		}
 	}
 	admin_chan.send( ParTsRelease );
 }	
