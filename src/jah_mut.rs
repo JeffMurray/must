@@ -56,7 +56,7 @@ struct JahMut;
 
 impl JahMut {
 	
-	pub fn connect_new() -> ( Chan<JahMutReq>, Chan<JahMutAdmin> ) {
+	pub fn connect() -> ( Chan<JahMutReq>, Chan<JahMutAdmin> ) {
 	
 		let ( admin_port, admin_chan ) = stream();
 		let ( user_port, user_chan ) = stream();
@@ -199,7 +199,7 @@ impl JahMut {
 #[test]
 fn test_insert_or_update(){
 
-	let ( user_chan, admin_chan ) = JahMut::connect_new();
+	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match {	let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );
@@ -232,7 +232,7 @@ fn test_insert_or_update(){
 #[test]
 fn test_data_conversions(){
 
-	let ( user_chan, admin_chan ) = JahMut::connect_new();
+	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match {	let ( c, p ) = oneshot::init();
 		user_chan.send( GetStr( ~"is", c ) );
@@ -283,7 +283,7 @@ fn test_data_conversions(){
 #[test]
 fn test_remove(){
 
-	let ( user_chan, admin_chan ) = JahMut::connect_new();
+	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match { let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );
@@ -312,7 +312,7 @@ fn test_remove(){
 #[test]
 fn test_get_map(){
 
-	let ( user_chan, admin_chan ) = JahMut::connect_new();
+	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
 	match { let ( c, p ) = oneshot::init();
 		user_chan.send( GetJson( ~"is", c ) );

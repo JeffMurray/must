@@ -21,8 +21,6 @@ extern mod must;
 //excuse me while I load the fits here for now.
 extern mod file_append_json;
 extern mod err_fit;
-
-
 use err_fit::{ ErrFit };
 use file_append_json::{ FileAppendJSON };
 use par::{ Par, ParInComm, ParTrans, ParCommEndChan, FitOutcome };
@@ -67,7 +65,7 @@ enum ParTInAdminComm {
 
 impl ParTs {
 
-	fn connect() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
+	pub fn connect() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
 	
 		let ( user_port, user_chan ) = stream();
 		let ( admin_port, admin_chan ) = stream();	

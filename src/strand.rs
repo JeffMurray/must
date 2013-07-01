@@ -24,7 +24,7 @@ use core::hashmap::linear::LinearMap;
 use core::task::spawn;
 
 // Transactions and their arguments are monitored and shuttled around to ParTs by an ephemeral spawn 
-// called Ribosome::go. The Ribosome takes a Strand of Logic through a series of
+// created with Ribosome::connect. The Ribosome takes a Strand of Logic through a series of
 // successes or nicely handled error responses to the end of the final strand.
 
 // I plan on making a lot of Fits, and I hope others will too.  With every new Fit, the
@@ -73,16 +73,17 @@ enum LogicInComm {
 	NextEnd
 }
 
+
 enum LogicOutComm {
-	DoFit( ~str ),  //reg_fit_key, args
-	Err( ~Object ),
+	//Fit = Functionally Isolated Transaction
+	DoFit( ~str ),  // ( reg_key )
+	LogicErr( ~Object ),
 	EndOfStrand
 }
 
 impl StrandKeyMap {
 
 	fn get_strand_key( &self, key: ~str ) -> ~str {
-	
 		match self.mapped_strands.find( &key ) {
 			Some( strand_key ) => {
 				copy *strand_key
@@ -96,7 +97,7 @@ impl StrandKeyMap {
 
 impl Ribosome {
 
-	fn go( strand_key: ~str, arg_bank: Chan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
+	fn connect( strand_key: ~str, arg_bank: Chan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
 	
 		// Finds the Strand of Logic using strand_key and then calls Parfitables and accumulates an arg_bank
 		// that can be used to satisfy jah_spec requirements of Fits while working its way over the strands.
@@ -130,7 +131,7 @@ impl Ribosome {
 									strand = Ribosome::get_strand( strand_map.get_strand_key( key ) );
 									pos = 0;
 								} None => {
-									rib_chan.send( Err( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy args_key, ~"euG3S9MfQQmlRe6B", ~"strand.rs" ) ) );
+									rib_chan.send( LogicErr( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy args_key, ~"euG3S9MfQQmlRe6B", ~"strand.rs" ) ) );
 									break_again = true;
 									break;
 								}
@@ -149,7 +150,7 @@ impl Ribosome {
 								pos = 0;
 							} 
 							_ => {
-								rib_chan.send( Err( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"not OkErr", ~"qu0Mbo5S23uVXyXy", ~"strand.rs" ) ) );
+								rib_chan.send( LogicErr( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"not OkErr", ~"qu0Mbo5S23uVXyXy", ~"strand.rs" ) ) );
 								break;								
 							}							
 						}
@@ -182,7 +183,7 @@ impl Ribosome {
 				 	} ] }			
 			//Add document
 			~"0loMIC2O3UW1yuTW" => { ~[ OkErr( ~"S68yWotrIh06IdE8", ~"DROOg7Vt2GXiVl00" ) ] }
-			//Error println to terminal
+			//Error output to terminal
 			~"DROOg7Vt2GXiVl00" => { ~[ OkErr( ~"EHR6DFySwtSHzlb2", ~"fUhzdaBaEYITxXET" ) ] }
 			//Empty strand
 			~"fUhzdaBaEYITxXET" => { ~[] }
@@ -209,36 +210,36 @@ impl Ribosome {
 fn various() {
 
 	//Setup an arg_bank
-	let ( arg_bank_chan, admin_chan ) = JahMut::connect_new();			
+	let ( arg_bank_chan, admin_chan ) = JahMut::connect();			
 	admin_chan.send ( InsertOrUpdate( ~"some_arg_key", String( ~"ants_are" ).to_json() ) );
-	let ( port, chan ) = Ribosome::go( ~"o88KanesoJ6J19uN" , arg_bank_chan );
+	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" , arg_bank_chan );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 1" ) }
-		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }
+		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 2" ) }
-		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}	
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"S68yWotrIh06IdE8" ) }
-		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}	
 	chan.send( NextErr );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"EHR6DFySwtSHzlb2" ) } // the first fit in the error strand
-		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { io::println( key ); fail!() }
-		Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> {  }	
 	}	
 	admin_chan.send( Release );
