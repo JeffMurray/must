@@ -262,7 +262,7 @@ fn test_write_and_read() {
 	let mut args = ~LinearMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-	args.insert( ~"must", Must::new_must().to_json() );	
+	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
 	let rval = match { let ( c, p ) = oneshot::init();

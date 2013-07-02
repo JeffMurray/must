@@ -55,9 +55,9 @@ impl Must{
 	//	This fn is used for making a key when adding adding a new document to
 	//	the the file and b+ tree indexing system
 
-	pub fn new_must() -> Must {
+	pub fn new() -> Must {
 	
-		Must::stamped_must(rand::Rng().gen_str(16u))
+		Must::stamped(rand::Rng().gen_str(16u))
 	}
 	
 	//	Takes an existing key and returns a new Must with current time stamp
@@ -69,7 +69,7 @@ impl Must{
 	//	edit.  The document retains the same key, but new sec and nsec 
 	//	values distinguish it from older versions in the b+ tree.
 	
-	pub fn stamped_must(must_key: ~str) -> Must {
+	pub fn stamped(must_key: ~str) -> Must {
 	
 		//	If the whole world uses utc for time stamps
 		//	something good has to come ;)
@@ -78,17 +78,6 @@ impl Must{
 			key: copy must_key,
 			sec: t.sec,
 			nsec: t.nsec
-		}
-	}
-	
-	//	Returns a new Must where all of the values are supplied
-	
-	pub fn copied_must(must_key: ~str, sec: i64, nsec: i32) -> Must {
-	
-		Must { 
-			key: copy must_key,
-			sec: sec,
-			nsec: nsec
 		}
 	}
 	
@@ -150,7 +139,7 @@ impl Must{
 				}	
 			}
 		}};
-		Ok( Must::copied_must( key, sec.to_i64(), nsec.to_i32() ) )
+		Ok( Must{ key: key, sec: sec.to_i64(), nsec: nsec.to_i32() } )
 	}
 }
 
@@ -264,14 +253,14 @@ impl ToJson for @Must {
 fn test_Ord_Eq(){
 
 	//	Make a new Must for adding a new document
-	let must1 = Must::new_must();
+	let must1 = Must::new();
 	//	Make a new Must for a new version of an existing document
-	let must2 = Must::stamped_must(copy must1.key);
+	let must2 = Must::stamped(copy must1.key);
 	//	The newest documents should be less than the older one
 	assert!( must2 < must1 &&  must2 <= must1 && must1 > must2 &&  must1 >= must2 );
 	
 	//	Make a new Must from existing information
-	let must3 = Must::copied_must( copy must2.key, must2.sec, must2.nsec );
+	let must3 = copy must2;
 	//	Make sure that a copied Must is equal to the Must that is copied.
 	assert!(  must3 == must2 && must3 != must1 );
 }
@@ -279,7 +268,7 @@ fn test_Ord_Eq(){
 #[test]
 fn test_to_str() {
 
-	let must = Must::new_must();
+	let must = Must::new();
 	//	Make sure the key, sec and nsec values are always contained in to_str()
 	assert!( str::contains( must.to_str(), must.key ) 
 			&& str::contains( must.to_str(), must.sec.to_str() )  
@@ -290,7 +279,7 @@ fn test_to_str() {
 #[test]
 fn test_from_json_and_to_json(){
 	
-	let m = Must::new_must();
+	let m = Must::new();
 	let j = m.to_json();
 	match Must::from_json( j ) {
 		Ok( val ) => {

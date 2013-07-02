@@ -163,7 +163,7 @@ impl JahSpec {
 	//	Loops through the allowed args and returns a list the arg names names 
 	//	that are required
 	
-	priv fn get_required_keys(&self) -> Result<~[~str], ~[~Object]> {
+	pub fn get_required_keys(&self) -> Result<~[~str], ~[~Object]> {
 	
 		match self.get_allowed() {
     		Ok( alwd ) => {
@@ -254,6 +254,7 @@ impl JahSpec {
 	//	Returns a the object with all the required argument keys
 	
 	priv fn get_allowed( &self ) -> Result<~Object, ~[~Object]> {
+	
 		match self.spec_args.get_map( ~"allowed" ) {
 			Ok( obj ) => {
 				Ok( copy obj )
@@ -267,6 +268,19 @@ impl JahSpec {
 						Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_list(), ~"allowed", self.spec_key(), ~"GfJyy8rO1hTvM0gs" ) ] )
 					}
 				}						
+			}
+		}
+	}
+	
+	pub fn allowed_keys( &self ) -> Result<~[~str], ~Object> {
+		
+		match self.get_allowed() {
+			Ok( allowed ) => {
+				let jah = JahArgs::new( allowed );
+				Ok( jah.arg_keys() )
+			}
+			Err( errs ) => {
+				Err( Bootstrap::mk_mon_err( errs ) )
 			}
 		}
 	}

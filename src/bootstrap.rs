@@ -35,123 +35,30 @@ use core::hashmap::linear::LinearMap;
 struct Bootstrap;
 impl Bootstrap {
  
-
-	//	The jah_spec that JahSpec must conform to
-	
-	pub fn jah_spec_spec_key() -> ~str {
+	// looking forward to writing a lurker index
+	// to retrieve these...for now I have: 
+	// The master key of bootstrap specs
+	pub fn find_spec( spec_key: ~str ) -> ~Object {
 		
-		~"VMldwIx01Q0ogNQb"
+		match spec_key {
+			~"VMldwIx01Q0ogNQb" => { Bootstrap::jah_spec_spec() } // see jah_spec.rs for a description of jah_specs
+			~"MSzKdSSWEIP6WC5S" => { Bootstrap::jah_corrupted_spec() } // return this when you would otherwise throw an error 
+			~"k0fA2inA45gmmZHV" => { Bootstrap::spec_must() } // holds the must key
+			~"g63UcB7rekfP4TlI" => { Bootstrap::spec_rule_spec() }	
+			~"mXnXQkmmB0GgltVM" => { Bootstrap::end_connection() }
+			~"gSNKN6Ey2JmDx70W" => { Bootstrap::spec_rule_error_spec() } //The spec for the for errors generated through enforcing specs.
+			~"uJmQQbpKD9GrIAYl" => { Bootstrap::spec_fit_sys_err() }
+			_ => { Bootstrap::jah_corrupted_spec() }	
+		}
 	}
 	
-	// returned if jah_spec cannot determine what the spec key is
-	pub fn jah_corrupted_spec_key() -> ~str {
-		
-		~"MSzKdSSWEIP6WC5S"
-	}	
-
- 	pub fn jah_spec_spec() -> ~Object {
-	 
-	 	let mut spec = ~LinearMap::new();
-	 	
-	 	//	The must for the main source of information about the Jah specification
-	 	
-	 	spec.insert(~"spec_key",String(Bootstrap::jah_spec_spec_key()));
-	 	let mut allowed = LinearMap::new();
-	 		
-	 	//	A list that specifies the rules to apply to the "allowed" argument.
-	 	//	Every JahSpec has to have an arg called "allowed", which holds
-	 	//	a list of rules
- 			
-	 	allowed.insert(~"allowed",~[
-			//	The rule requiring this arg to be supplied in the specification
-	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		//	The rule requiring this arg be an Object
-	 		Bootstrap::arg_rule_obj_must_be_object().to_json()
- 		]);
-	 	spec.insert(~"allowed",	allowed.to_json());	 
-	 	spec
-	 }
-	 
-	 pub fn spec_must_must_key() -> ~str {
-	 
-	 	~"k0fA2inA45gmmZHV"
-	 }
-	 
-	 pub fn spec_must() -> ~Object {
-	 
-	 	let mut allowed = ~LinearMap::new();
-	 	//	A list that specifies the rules to apply to the "allowed" arg.
-	 	//	Every JahSpec has to have an arg called "allowed", which holds
-	 	//	a list of rules
- 		allowed.insert(~"key",~[
-	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
- 		]);
-	 	allowed.insert(~"sec",~[
-	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		Bootstrap::arg_rule_num_must_be_number().to_json()
- 		]);
-	 	allowed.insert(~"nsec",~[
-	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		Bootstrap::arg_rule_num_must_be_number().to_json()
- 		]);	
-	 	let mut spec = ~LinearMap::new();
-	 	//	The must for the main source of information about the Jah specification
-	 	spec.insert( ~"spec_key", String( Bootstrap::spec_must_must_key() ).to_json() );		
-	 	spec.insert( ~"allowed", allowed.to_json() ); 	
-	 	spec
-	 }
-	 
-	 
-	 pub fn spec_rule_spec_key() -> ~str {
-	 	
-	 	~"g63UcB7rekfP4TlI"
-	 }
-	 
-	 //	The jah_spec that spec_rules must conform to
-	 pub fn spec_rule_spec() -> ~Object {
-	 
-	 	let mut allowed = ~LinearMap::new();
- 		allowed.insert( ~"rule_key", ~[
-	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
- 		]);
- 		let mut spec = ~LinearMap::new();
-	 	spec.insert( ~"spec_key", String( Bootstrap::spec_rule_spec_key() ).to_json() );
-	 	spec.insert( ~"allowed", allowed.to_json() );
-	 	spec
- 	}
-	 
 	//	**Requests that can be sent before the document system is up and running **
-	 
- 	//	A request that the channel end communication
- 	
-	pub fn end_connection_key() -> ~str {
-	 	
-	 	~"mXnXQkmmB0GgltVM"
-	}
-	 
-	pub fn end_connection() -> ~Object {
-	 
-	 	let mut order = ~LinearMap::new();
-	 	order.insert( ~"spec_key", String( Bootstrap::end_connection_key() ).to_json() );
-	 	order
-	 }
-	 
+	 	 
 	 // ** Errors that can be generated before the document system is up and running **
 	
 	//	When an arg is sent that does not conform to the "allowed" arg list
 	// 	this error document is reported.
-	
-	fn spec_rule_error_spec_key() -> ~str {
 		
-		~"gSNKN6Ey2JmDx70W"
-	}
-	
-	pub fn spec_fit_sys_err_key() -> ~str {
-		~"uJmQQbpKD9GrIAYl"
-	}
-	
 	pub fn fit_sys_err( args: ~Object, sys_text: ~str, fit_key: ~str, file_name: ~str, line_key: ~str ) -> ~Object {
 	
 		let mut err = ~LinearMap::new();		
@@ -166,11 +73,7 @@ impl Bootstrap {
 		err.insert( ~"args", args.to_json() );
 		err
 	}
-		
-	pub fn part_does_not_exist() -> ~str {
-		
-		~"3S5UX55Q84zKqx5o"		
-	}
+	
 	
  	pub fn spec_rule_error(rule_key: ~str, arg_name: ~str, spec_key: ~str, line_key: ~str) -> ~Object { 
 	 
@@ -186,6 +89,7 @@ impl Bootstrap {
 		err.insert( ~"line_key", String( line_key ).to_json() );
 		err
  	}
+
  	
  	pub fn logic_error(rule_key: ~str, arg_name: ~str, line_key: ~str, file_name: ~str) -> ~Object { 
 	 
@@ -214,127 +118,150 @@ impl Bootstrap {
 		rule.insert( ~"line_key", String( line_key ).to_json() );
 		rule
 	 }  
+	 
+	//packages 1 or more errors
+	pub fn mk_mon_err( errs: ~[~Object] ) -> ~Object {
 	
-	 // ** Arg Rules **
+		// Ahh how faint design errors push themselves out
+		// at least mk_mon_err is only for rare errors
+		let mut lst = ~[];
+		for errs.each | err | {
+			lst.push( err.to_json() );
+		}
+		
+		let mut mon_err = ~LinearMap::new();
+		mon_err.insert( ~"errs", List( lst ).to_json() );
+		mon_err.insert( ~"spec_key", String( ~"VWnPY4CStrXkk4SU" ).to_json() );
+		mon_err
+	}
+	
+	// Part Rule keys
+	
+	pub fn part_does_not_exist() -> ~str {
+		
+		~"3S5UX55Q84zKqx5o"		
+	}
+	
+	// ** Spec Rule keys **
  
-	 pub fn arg_rule_key_arg_must_exist() -> ~str {
+	pub fn arg_rule_key_arg_must_exist() -> ~str {
+ 
+		~"j60qzWM5fDYugKuh" 
+	}
 	 
-	 	~"j60qzWM5fDYugKuh" 
-	 }
-	 
-	 //	This rule requires the arg to "exist" as opposed to only being "allowed"
-	 pub fn arg_rule_arg_must_exist() -> ~Object { 
+	//	This rule requires the arg to "exist" as opposed to only being "allowed"
+	pub fn arg_rule_arg_must_exist() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_rule_key_arg_must_exist().to_json() );
 		rule
-	 }
+	}
 	 
-	 pub fn arg_spec_key_not_known_to_par() -> ~str {
+	pub fn arg_spec_key_not_known_to_par() -> ~str {
 	 
 	 	~"DZNl64Jyib2sQgde" 
-	 }
+	}
 	 
-	 pub fn arg_spec_not_known_to_par() -> ~Object { 
+	pub fn arg_spec_not_known_to_par() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_not_known_to_par().to_json() );
 		rule
-	 }
+	}
 	 
-	 pub fn arg_spec_key_not_known_to_fit() -> ~str {
+	pub fn arg_spec_key_not_known_to_fit() -> ~str {
 	 
 	 	~"DZNl64Jyib2sQgde" 
-	 }
+	}
 	 
-	 //	thrown if the fit does not understand the arguments
-	 pub fn arg_spec_not_known_to_fit() -> ~Object { 
+	//	thrown if the fit does not understand the arguments
+	pub fn arg_spec_not_known_to_fit() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_not_known_to_fit().to_json() );
 		rule
-	 }	 
+	}	 
 	 
-	 pub fn arg_spec_key_arg_must_exist() -> ~str {
+	pub fn arg_spec_key_arg_must_exist() -> ~str {
 	 
 	 	~"vTH21fYQkg6N6PBB" 
-	 }
+	}
 	 
-	 //	This rule requires the arg to "exist" as opposed to only being "allowed"
-	 pub fn arg_spec_arg_must_exist() -> ~Object { 
+	//	This rule requires the arg to "exist" as opposed to only being "allowed"
+	pub fn arg_spec_arg_must_exist() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_spec_key_arg_must_exist().to_json() );
 		rule
-	 }
+	}
 	 	  
-	 //	This rule requires that the arg be a string and that the string match the 'value'
-	 //	property
+	//	This rule requires that the arg be a string and that the string match the 'value'
+	//	property
 
-	 pub fn arg_rule_key_str_arg_must_equal() -> ~str {
+	pub fn arg_rule_key_str_arg_must_equal() -> ~str {
 	 
 	 	~"OmQSjHS5lXaNO3fT" 
-	 }
+	}
 	 
-	 pub fn arg_rule_str_arg_must_equal(value: ~str) -> ~Object { 
+	pub fn arg_rule_str_arg_must_equal(value: ~str) -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_rule_key_str_arg_must_equal().to_json() );
 		//	The string that the arg must be equal to
 		rule.insert( ~"value", String( value ) );
 		rule
-	 }
+	}
 	 
-	 pub fn arg_rule_key_arg_key_must_be_string() -> ~str {
+	pub fn arg_rule_key_arg_key_must_be_string() -> ~str {
 	 
 	 	~"rWa4heRrNWkwabbB" 
-	 }
+	}
 	 
- 	 pub fn arg_rule_arg_must_be_string() -> ~Object { 
+ 	pub fn arg_rule_arg_must_be_string() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", Bootstrap::arg_rule_key_arg_key_must_be_string().to_json() );
 		rule
-	 }
+	}
  
- 	 pub fn arg_rule_key_arg_must_be_object() -> ~str {
+ 	pub fn arg_rule_key_arg_must_be_object() -> ~str {
  	 
 	 	~"VbXnEPrAXR7EFuqV" 
-	 }
+	}
 	 
- 	 pub fn arg_rule_obj_must_be_object() -> ~Object { 
+ 	pub fn arg_rule_obj_must_be_object() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", String( Bootstrap::arg_rule_key_arg_must_be_object() ).to_json() );
 		rule
-	 } 
+	} 
 	 
-	 pub fn arg_rule_arg_key_arg_must_be_number() -> ~str {
+	pub fn arg_rule_arg_key_arg_must_be_number() -> ~str {
 	 
 	 	~"SedD0iw7wRAqFNoT" 
-	 }
+	}
 	 
-	 pub fn arg_rule_num_must_be_number() -> ~Object { 
+	pub fn arg_rule_num_must_be_number() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		rule.insert( ~"rule_key", String( Bootstrap::arg_rule_arg_key_arg_must_be_number() ).to_json() ) ;
 		rule
-	 }	
+	}	
 	 	  
-	 pub fn arg_rule_key_arg_is_not_allowed() -> ~str {
+	pub fn arg_rule_key_arg_is_not_allowed() -> ~str {
 	 
 	 	~"mHFrQhffSePzxCX8" 
-	 }
+	}
 	 
-	 pub fn arg_rule_arg_key_is_not_allowed() -> ~Object { 
+	pub fn arg_rule_arg_key_is_not_allowed() -> ~Object { 
 	 
 		let mut rule = ~LinearMap::new();
 		//	The must of the document pointing to the main source of information about trace info about arg_rule_num_must_be_allowed
 		rule.insert( ~"rule_key", String( Bootstrap::arg_rule_key_arg_is_not_allowed() ).to_json() ) ;
 		rule
-	 }	
+	}	
 	 
-	 pub fn arg_rule_key_rule_must_be_implemented() -> ~str {
+	pub fn arg_rule_key_rule_must_be_implemented() -> ~str {
  		
  		~"jTA8LG31iLGuAo3e"
  	}
@@ -369,42 +296,187 @@ impl Bootstrap {
 		rule.insert( ~"rule_key", String( Bootstrap::arg_rule_key_arg_must_be_bool() ).to_json() ) ;
 		rule
 	}
-	
-	//packages 1 or more errors
-	pub fn mk_mon_err( errs: ~[~Object] ) -> ~Object {
-	
-		// Ahh how faint design errors push themselves out
-		// at least mk_mon_err is only for rare errors
-		let mut lst = ~[];
-		for errs.each | err | {
-			lst.push( err.to_json() );
-		}
 		
-		let mut mon_err = ~LinearMap::new();
-		mon_err.insert( ~"errs", List( lst ).to_json() );
-		mon_err.insert( ~"spec_key", String( ~"VWnPY4CStrXkk4SU" ).to_json() );
-		mon_err
+	//  *** specs ***
+	
+	pub fn spec_fit_sys_err_key() -> ~str {
+	
+		~"uJmQQbpKD9GrIAYl"
 	}
 	
-	//pub fn spec_reg_fit() -> 
+	//	The jah_spec that spec_rules must conform to
 	
-	pub fn fit_reg() -> ~Object {
+	pub fn spec_fit_sys_err() -> ~Object {
+		 
+	 	let mut allowed = ~LinearMap::new();
+		allowed.insert( ~"sys_text", ~[  // This text is reserved for native rust error messages
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);
+		allowed.insert( ~"spec_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);
+		allowed.insert( ~"fit_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);
+		allowed.insert( ~"line_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);
+		allowed.insert( ~"file_name", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);	 
+		allowed.insert(~"args",~[]); // can put other info here if helpful
 		
-		let mut fits = ~[];
-		{	let mut reg = ~LinearMap::new();
-			reg.insert( ~"reg_key", String( ~"4E7XRuhm3Tc73Gjd" ).to_json() );
-			reg.insert( ~"fit_key", String( ~"Zbh4OJ4uE1R1Kkfr" ).to_json() );
-			let mut fit_args = ~LinearMap::new();
-			fit_args.insert( ~"path", String( ~"docs/must_store_0001.json" ).to_json() );
-			fit_args.insert( ~"num", 1u.to_json() );
-			reg.insert( ~"fit_args", fit_args.to_json() );
-			reg.insert( ~"spec_key", String( ~"IZITlVivw553sC5n" ).to_json() );
-			fits.push( reg.to_json() );
-		}
+		let mut spec = ~LinearMap::new();
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_fit_sys_err_key() ).to_json() );
+	 	spec.insert( ~"allowed", allowed.to_json() );
+	 	spec
+	}	
+	
+	fn spec_rule_error_spec_key() -> ~str {
 		
-		let mut fit_reg = ~LinearMap::new();
-		fit_reg.insert( ~"fit_regs", List( fits ) );
-		fit_reg.insert( ~"spec_key", String( ~"m2a2PQR6hDsHULoN" ).to_json() );
-		fit_reg
+		~"gSNKN6Ey2JmDx70W"
 	}
+	
+	fn spec_rule_error_spec() -> ~Object {
+
+	 	let mut allowed = ~LinearMap::new();
+ 		allowed.insert( ~"rule_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		allowed.insert( ~"spec_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		allowed.insert( ~"arg_name", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		allowed.insert( ~"rule_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		allowed.insert( ~"line_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		allowed.insert( ~"file_name", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);	 		
+ 		let mut spec = ~LinearMap::new();
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_rule_error_spec_key() ).to_json() );
+	 	spec.insert( ~"allowed", allowed.to_json() );
+	 	spec
+
+	}
+	
+	// returned if jah_spec cannot determine what the spec key is
+	pub fn jah_corrupted_spec_key() -> ~str {
+		
+		~"MSzKdSSWEIP6WC5S"
+	}	
+
+	pub fn jah_corrupted_spec() -> ~Object {
+	
+	 	let mut spec = ~LinearMap::new();
+	 	spec.insert(~"spec_key",String(Bootstrap::jah_corrupted_spec_key()));
+	 	let mut allowed = LinearMap::new();
+	 	allowed.insert(~"allowed", List(~[]) ); 
+	 	spec		
+	}
+	
+		//	The jah_spec that JahSpec must conform to
+	
+	pub fn jah_spec_spec_key() -> ~str {
+		
+		~"VMldwIx01Q0ogNQb" 
+	}
+		
+ 	pub fn jah_spec_spec() -> ~Object {
+	 
+	 	let mut spec = ~LinearMap::new();
+	 	//	The key for the main source of information about the Jah specification
+	 	spec.insert(~"spec_key",String(Bootstrap::jah_spec_spec_key()));
+	 	let mut allowed = ~LinearMap::new();
+	 	//	A list that specifies the rules to apply to the "allowed" argument.
+	 	//	Every JahSpec has to have an arg called "allowed", which holds
+	 	//	a list of rules
+	 	allowed.insert(~"allowed",~[
+			//	The rule requiring this arg to be supplied in the specification
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		//	The rule requiring this arg be an Object
+	 		Bootstrap::arg_rule_obj_must_be_object().to_json()
+ 		]);
+	 	spec.insert(~"allowed",	allowed.to_json());	 
+	 	spec
+	 }
+	 
+	 	 pub fn spec_must_must_key() -> ~str {
+	 
+	 	~"k0fA2inA45gmmZHV"
+	 }
+	 
+	 pub fn spec_must() -> ~Object {
+	 
+	 	let mut allowed = ~LinearMap::new();
+	 	//	A list that specifies the rules to apply to the "allowed" arg.
+	 	//	Every JahSpec has to have an arg called "allowed", which holds
+	 	//	a list of rules
+ 		allowed.insert(~"key",~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+	 	allowed.insert(~"sec",~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_num_must_be_number().to_json()
+ 		]);
+	 	allowed.insert(~"nsec",~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_num_must_be_number().to_json()
+ 		]);	
+	 	let mut spec = ~LinearMap::new();
+	 	//	The must for the main source of information about the Jah specification
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_must_must_key() ).to_json() );		
+	 	spec.insert( ~"allowed", allowed.to_json() ); 	
+	 	spec
+	 }
+	 
+	 pub fn spec_rule_spec_key() -> ~str {
+	 	
+	 	~"g63UcB7rekfP4TlI"
+	 }
+	 
+	 //	The jah_spec that spec_rules must conform to
+	 pub fn spec_rule_spec() -> ~Object {
+	 
+	 	let mut allowed = ~LinearMap::new();
+ 		allowed.insert( ~"rule_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
+ 		let mut spec = ~LinearMap::new();
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_rule_spec_key() ).to_json() );
+	 	spec.insert( ~"allowed", allowed.to_json() );
+	 	spec
+ 	}	
+ 	
+ 	//	A request that the channel end communication
+ 	
+	pub fn end_connection_key() -> ~str {
+	 	
+	 	~"mXnXQkmmB0GgltVM"
+	}
+	 
+	pub fn end_connection() -> ~Object {
+	 
+	 	let mut order = ~LinearMap::new();
+	 	order.insert( ~"spec_key", String( Bootstrap::end_connection_key() ).to_json() );
+	 	order
+	 } 
 }

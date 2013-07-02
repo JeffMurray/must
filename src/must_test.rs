@@ -19,5 +19,5 @@ use must::{Must};
 
 fn main() {
 
-	io::println(Must::new_must().to_str());	
+	io::println(Must::new().to_str());	
 }
