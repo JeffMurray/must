@@ -30,3 +30,4 @@ all: clean
 	rustc --lib parts.rs -L .	
 	rustc parts.rs --test -o parts-tests -L .
 	./parts-tests
+	rustc --lib must_bank.rs -L .

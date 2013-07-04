@@ -38,7 +38,7 @@ use core::task::{ spawn };
 //  ParTs is the place where live Parfitables and their channels can be loaded and accessed 
 
 //	T = Terminal
-//	ParT: holds shared channel to a "live" instance of a Par
+//	ParT: holds a shared channel to a "live" instance of a Par
 //	Pronounce it Part or Par Tee 
 
 struct ParT {
