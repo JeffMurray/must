@@ -64,33 +64,14 @@ impl Parfitable for FileAppendJSON {
 
 impl JahSpeced for FileAppendJSON {
 	
-	fn specs_in( &self ) -> ~Object {
+	fn spec_keys_in( &self ) -> ~[~str] {
 	
-		let mut allowed = ~LinearMap::new();
-		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
-		allowed.insert( ~"acct", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
-		allowed.insert( ~"must", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
-		allowed.insert( ~"doc", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
-		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
-		let mut spec = ~LinearMap::new();
-		spec.insert( ~"allowed", Object(allowed).to_json() );
-		spec.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-		let mut specs  = ~LinearMap::new();
-		specs.insert( ~"uHSQ7daYUXqUUPSo", Object( spec ) );
-		specs
+		~[~"uHSQ7daYUXqUUPSo"]
 	}
 	
-	fn specs_out( &self ) -> ~Object {
+	fn spec_keys_out( &self ) -> ~[~str] {
 	
-		let mut allowed = ~LinearMap::new();
-		allowed.insert( ~"slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
-		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
-		let mut spec = ~LinearMap::new();
-		spec.insert( ~"allowed", allowed.to_json() );
-		spec.insert( ~"spec_key", String(~"ma2snwuG8VPGxY8z").to_json() );
-		let mut specs  = ~LinearMap::new();
-		specs.insert( ~"ma2snwuG8VPGxY8z", Object( spec ) );
-		specs
+		~[~"ma2snwuG8VPGxY8z"]
 	}
 }
 
@@ -114,28 +95,12 @@ impl FileAppendJSON {
     			return Err( fit_sys_err );
     		}
     		}};
+    		io::println( file_path );
     	let path = Path( file_path );
-    	let arg_sp = self.specs_in();
-	    let arg_spec = { 
-	    	match arg_sp.find(&~"uHSQ7daYUXqUUPSo") {
-				Some( arg_spc ) => {
-					let arg_spc = copy *arg_spc;
-					match copy arg_spc {
-						Object( arg_s ) => { 
-							copy *arg_s
-						}
-						_ => {
-							let mut e = ~LinearMap::new();
-							e.insert( ~"arg_spc_error", copy arg_spc );
-							e.insert( ~"spec_key", String( ~"ZywhFWvCrDhvVXJL" ) );
-							return Err( Bootstrap::fit_sys_err( e, ~"Spec must be an Object", copy fit_key, ~"file_append_json.rs", ~"fJkkvR5baqohL0nu") ) ;						
-						}
-					} 
-				}
-				None => {
-					return Err( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
-				}
-			}};					
+    	let spec = JahSpec::new( Bootstrap::find_spec( ~"uHSQ7daYUXqUUPSo" ) );
+		if spec.spec_key() !=  ~"uHSQ7daYUXqUUPSo" {
+			return Err( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
+		}				
 		do spawn {	
 			let append_writer_rslt = core::io::mk_file_writer( &path, &[io::Create, io::Append] );
 			let file_reader_rslt = core::io::file_reader( &path );
@@ -164,7 +129,7 @@ impl FileAppendJSON {
 							break;
 						},
 			  			DoFit( args, home_chan ) => {
-							match JahSpec::new( ~copy arg_spec ).check_args( JahArgs::new( ~copy *args ) ) {
+							match spec.check_args( JahArgs::new( ~copy *args ) ) {
 								Ok( _ ) => { 
 									
 									//get current the ending position of the file
@@ -281,18 +246,11 @@ fn test_write_and_read() {
 			io::println( JahArgs::new( err ).to_str() );
 			fail!();
 		}};
-	let ospecs = copy *fit.specs_out();
-	let ospec = copy *ospecs.find(&~"ma2snwuG8VPGxY8z").get();
-	match ospec {
-		Object( out_spec ) => {
-			let jah = JahArgs::new( rval );
-			assert!( JahSpec::new( out_spec ).check_args( copy jah ).is_ok() );
-			let slice = JahArgs::new( jah.get_map( ~"slice" ).get() );
-			let len: uint = slice.get_float( ~"len" ).get().to_uint();
-			assert!( len == JahArgs::new( args ).to_str().len() );
-		}
-		_ => { fail!(); }
-	}
+	let jah = JahArgs::new( rval );
+	assert!( JahSpec::new( Bootstrap::find_spec( ~"ma2snwuG8VPGxY8z" ) ).check_args( copy jah ).is_ok() );
+	let slice = JahArgs::new( jah.get_map( ~"slice" ).get() );
+	let len: uint = slice.get_float( ~"len" ).get().to_uint();
+	assert!( len == JahArgs::new( args ).to_str().len() );
 }
 
 	

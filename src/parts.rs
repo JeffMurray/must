@@ -18,11 +18,14 @@ extern mod par;
 extern mod fit;
 extern mod bootstrap;
 extern mod must;
+extern mod jah_spec;
 //excuse me while I load the fits here for now.
 extern mod file_append_json;
 extern mod err_fit;
 use err_fit::{ ErrFit };
 use file_append_json::{ FileAppendJSON };
+//***
+use jah_spec::{ JahSpeced };
 use par::{ Par, ParInComm, ParTrans, ParCommEndChan, FitOutcome };
 use fit::{ Parfitable, ParFitComm, FitOk, FitErr, FitSysErr };
 use bootstrap::{ Bootstrap };
@@ -33,18 +36,15 @@ use core::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use core::task::{ spawn };
 
 //  ParTs is the place where live Parfitables and their channels can be loaded and accessed 
-//	ParTs::connect() serves up a tuple of chans that
-//	allow accessing the various Fits:
-// * admin chan is used for loading the live Fits.
-// * user channel receives a key identifying the Fit instance, and replies with a oneshot
-// 		to send arguments and receive results.  See must_bank.rs for a place it is used.
 
 //	T = Terminal
 //	ParT: holds shared channel to a "live" instance of a Par
 //	Pronounce it Part or Par Tee 
 
 struct ParT {
-	chan: SharedChan<ParInComm>
+	chan: SharedChan<ParInComm>,
+	specs_in: ~[~str],
+	specs_out: ~[~str]
 }
 
 struct ParTs;
@@ -141,20 +141,22 @@ impl ParTs {
 	// I'm planning to make a document based fit registry after the indexing systems up and running
 	// for now they will get hard-coded
 	
-	priv fn start_part<T: Parfitable>( par: ~Par, fit: ~T ) -> Result<~ParT, ~Object> {
-		match par.connect( 
-			{	let rslt: Result<Chan<ParFitComm>, ~Object> = fit.connect();
-				match rslt {
-					Ok( fit_chan ) => {
-						fit_chan
-					}
-					Err( obj ) => {
-						return Err( Bootstrap::mk_mon_err( ~[obj] ) );
-					}
+	priv fn start_part<T: Parfitable+JahSpeced>( par: ~Par, fit: ~T ) -> Result<~ParT, ~Object> { //notice how Rust generics kick ass?
+	
+		let fit_chan = {
+			let rslt: Result<Chan<ParFitComm>, ~Object> = fit.connect();
+			match rslt {
+				Ok( fit_chan ) => {
+					fit_chan
 				}
-			} ) {
+				Err( obj ) => {
+					return Err( Bootstrap::mk_mon_err( ~[obj] ) );
+				}
+			}};
+		
+		match par.connect(fit_chan) {
 			Ok( par_chan ) => {
-				Ok( ~ParT { chan: SharedChan( par_chan ) } )
+				Ok( ~ParT { chan: SharedChan( par_chan ), specs_in: copy fit.spec_keys_in(), specs_out: copy fit.spec_keys_out() } )
 			}
 			Err( err ) => {
 				Err( Bootstrap::mk_mon_err( ~[err] ) )
@@ -206,7 +208,6 @@ fn various_parts() {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
-	
 	match {	let ( c, p ) = oneshot::init();
 			admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) );
 			recv_one( p )
@@ -214,8 +215,6 @@ fn various_parts() {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
-	
-	
 	let mut doc = ~LinearMap::new();
 	doc.insert( ~"message",String( ~"Hello from inside ParTs::connect()!" ) );
 	let mut args = ~LinearMap::new();

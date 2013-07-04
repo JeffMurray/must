@@ -56,30 +56,14 @@ impl Parfitable for ErrFit {
 
 impl JahSpeced for ErrFit {
 	
-	fn specs_in( &self ) -> ~Object {
+	fn spec_keys_in( &self ) -> ~[~str] {
 	
-		let mut allowed = ~LinearMap::new();
-		// just pass the Object returned from FitComm, it can be sorted out on the index later on
-		allowed.insert( ~"err_args", ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
-		allowed.insert( ~"spec_key", ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
-		let mut spec = ~LinearMap::new();
-		spec.insert( ~"allowed", allowed.to_json() );
-		spec.insert( ~"spec_key", String(~"qJzMxt6eQV2CgKbr").to_json() );
-		let mut specs  = ~LinearMap::new();
-		specs.insert( ~"qJzMxt6eQV2CgKbr", Object( spec ) );
-		specs
+		~[~"qJzMxt6eQV2CgKbr"]
 	}
 	
-	fn specs_out( &self ) -> ~Object {
+	fn spec_keys_out( &self ) ->  ~[~str] {
 	
-		let mut allowed = ~LinearMap::new();
-		allowed.insert( ~"spec_key", ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
-		let mut spec = ~LinearMap::new();
-		spec.insert( ~"allowed", allowed.to_json() );
-		spec.insert( ~"spec_key", String(~"er5OWig71VG9oNjK").to_json() );
-		let mut specs  = ~LinearMap::new();
-		specs.insert( ~"er5OWig71VG9oNjK", Object( spec ) );
-		specs
+		~[~"er5OWig71VG9oNjK"]
 	}
 }
 

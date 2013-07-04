@@ -19,7 +19,7 @@ extern mod bootstrap;
 use jah_mut::{ JahMutReq, GetStr, JahMut, Release, InsertOrUpdate };
 use std::json::{ Object, String, ToJson };
 use bootstrap::{ Bootstrap };
-use core::comm::{ oneshot, recv_one };
+use core::comm::{ oneshot, recv_one, SharedChan };
 use core::hashmap::linear::LinearMap;
 use core::task::spawn;
 
@@ -97,7 +97,7 @@ impl StrandKeyMap {
 
 impl Ribosome {
 
-	fn connect( strand_key: ~str, arg_bank: Chan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
+	pub fn connect( strand_key: ~str, arg_bank: SharedChan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
 	
 		// Finds the Strand of Logic using strand_key and then calls Parfitables and accumulates an arg_bank
 		// that can be used to satisfy jah_spec requirements of Fits while working its way over the strands.
@@ -210,9 +210,10 @@ impl Ribosome {
 fn various() {
 
 	//Setup an arg_bank
-	let ( arg_bank_chan, admin_chan ) = JahMut::connect();			
+	let ( arg_bank_chan, admin_chan ) = JahMut::connect();
+	let arg_bank_chan = SharedChan( arg_bank_chan );			
 	admin_chan.send ( InsertOrUpdate( ~"some_arg_key", String( ~"ants_are" ).to_json() ) );
-	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" , arg_bank_chan );
+	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" , arg_bank_chan.clone() );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 1" ) }
 		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }

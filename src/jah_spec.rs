@@ -48,12 +48,11 @@ use bootstrap::{ Bootstrap };
 //	relayed correctly.
 
 
-//	Holds a Json Object that specifies what arguments are allowed for this particular
-//	task, and what static rules apply to them.
+//	Holds keys to the specs that are expected, and what can be returned.
 
 trait JahSpeced {
-	fn specs_in( &self ) -> ~Object;
-	fn specs_out( &self ) -> ~Object; 
+	fn spec_keys_in( &self ) -> ~[~str];
+	fn spec_keys_out( &self ) -> ~[~str]; 
 }
 
 struct JahSpec {

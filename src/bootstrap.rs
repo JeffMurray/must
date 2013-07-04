@@ -48,6 +48,8 @@ impl Bootstrap {
 			~"mXnXQkmmB0GgltVM" => { Bootstrap::end_connection() }
 			~"gSNKN6Ey2JmDx70W" => { Bootstrap::spec_rule_error_spec() } //The spec for the for errors generated through enforcing specs.
 			~"uJmQQbpKD9GrIAYl" => { Bootstrap::spec_fit_sys_err() }
+			~"uHSQ7daYUXqUUPSo" => { Bootstrap::spec_append_doc() }
+			~"ma2snwuG8VPGxY8z" => { Bootstrap::spec_append_doc_success() }
 			_ => { Bootstrap::jah_corrupted_spec() }	
 		}
 	}
@@ -466,6 +468,30 @@ impl Bootstrap {
 	 	spec
  	}	
  	
+ 	pub fn spec_append_doc() -> ~Object {
+ 	
+ 		let mut allowed = ~LinearMap::new();
+		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"acct", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"must", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"doc", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		let mut spec = ~LinearMap::new();
+		spec.insert( ~"allowed", Object(allowed).to_json() );
+		spec.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+		spec
+ 	}
+ 	
+ 	pub fn spec_append_doc_success() -> ~Object {
+ 	
+ 		let mut allowed = ~LinearMap::new();
+		allowed.insert( ~"slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~LinearMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String(~"ma2snwuG8VPGxY8z").to_json() );
+		spec
+	}
  	//	A request that the channel end communication
  	
 	pub fn end_connection_key() -> ~str {
