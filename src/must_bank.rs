@@ -27,41 +27,114 @@ use jah_args::{ JahArgs };
 use jah_spec::{ JahSpec };
 use par::{ FitOutcome, ParTrans };
 use fit::{ FitOk, FitErr, FitSysErr };
-use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr };
+use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr, ParTsRelease };
 use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
-use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs }; // , Release
+use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release }; // 
 use std::json::{ Object, String, ToJson };
 use bootstrap::{ Bootstrap };
 use core::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
 use core::hashmap::linear::LinearMap;
-use core::task::spawn;
+use core::task::{ spawn };
 
 struct MustBank;
 
 enum MustBankInComm {
-	MBTranscript( ~Object, ChanOne<Result< ~Object, ~Object >> ) // args, Result( trans_key info ) or Err info 
+	MBTranscript( ~Object, ChanOne<Result< ~Object, ~Object >> ), // args, Result( trans_key info ) or Err info 
+	MBRelease( ChanOne<()> ) //( ack_chan )
 }
 
 struct Transcriptor;
 
+impl MustBank {
+	
+	pub fn connect() -> Chan<MustBankInComm> {
+	
+		let (port, chan ) = stream();
+		MustBank::loop_in_spawn( port );
+		chan
+	}
+	
+	priv fn loop_in_spawn( port: Port< MustBankInComm > ) {
+	
+		do spawn {
+			let ( user_parts_chan, admin_parts_chan ) = MustBank::load_parts();  //leaving the warning to remind me to tidy this up
+			let user_parts_chan = SharedChan( user_parts_chan );
+			let ( goodby_port, goodby_chan ) = stream();
+			let goodby_chan = SharedChan( goodby_chan );
+			let mut t_count = 0u;
+			let mut releasing = false;
+			loop {
+				let ( recv_trans, recv_goodby ) = {
+					if t_count == 0u {
+						( true, false )
+					} else if releasing {
+						( false, true )
+					} else {
+						( port.peek(), goodby_port.peek() )
+					}};
+				
+				if recv_trans {
+					match port.recv() {
+						MBTranscript( args, chan_one ) => {
+							t_count += 1;
+							Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
+						}
+						MBRelease( ack_chan ) => {
+							while t_count > 0 { //TODO: put a timeout here
+								goodby_port.recv();
+								t_count -= 1;
+							}
+							admin_parts_chan.send( ParTsRelease );
+							ack_chan.send(());
+							break;
+						}
+					}
+				}
+				if recv_goodby {
+					goodby_port.recv();
+					t_count -= 1;
+				}
+				if !( recv_trans || recv_goodby ) {
+					task::yield();
+				}
+			}
+		}		
+	}
+
+	priv fn load_parts() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
+	
+		let ( user_chan, admin_chan ) = ParTs::connect();
+		match {	let ( c, p ) = oneshot::init();
+				admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) ); // FileAppendJSON
+				recv_one( p )
+			} {
+				Ok( _ ) => {}
+				Err( _ ) => { fail!(); }
+		}
+		
+		match {	let ( c, p ) = oneshot::init();
+				admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) ); // ErrFit
+				recv_one( p )
+			} {
+				Ok( _ ) => {}
+				Err( _ ) => { fail!(); }
+		}
+		( user_chan, admin_chan )
+	}
+}
+
 impl Transcriptor {
 
-	fn connect( kickoff_strand_key: ~str ) -> Chan<(MustBankInComm, SharedChan<ParTInComm>)> {
+	fn connect( kickoff_strand_key: ~str ) -> Chan<((~Object, ChanOne<Result< ~Object, ~Object >>, SharedChan<ParTInComm>, SharedChan<int>))> {
 	
 		let ( start_port, start_chan ) = stream();
 		
 		do spawn {
 			let kickoff_strand_key = copy kickoff_strand_key;	
-			let ( mb_trans, parts_chan ): (MustBankInComm, SharedChan<ParTInComm>) = start_port.recv();
-			let ( t_key, args ) = { //leaving the t_key warning to remind me to plug it in
-				match mb_trans {			
-					MBTranscript( args, home_chan_one ) => {
-						let t_key = Must::new();
-						home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
-						( t_key, args )
-					}
-				}};	
+			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~Object >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
+			let t_key = Must::new();
+			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
 			let ( arg_bank_user_chan, arg_bank_admin_chan ) = JahMut::connect();  //  <-- the arg bank
 			let arg_bank_sh_chan = SharedChan( arg_bank_user_chan );
 			arg_bank_admin_chan.send( LoadMap( copy args ) );
@@ -114,7 +187,9 @@ impl Transcriptor {
 						break;
 					}
 				}
-			}	
+			}
+			arg_bank_admin_chan.send( Release );
+			goodby_chan.send(1i);	
 		}
 		start_chan
 	}
@@ -179,44 +254,33 @@ impl Transcriptor {
 	}
 }
 
-impl MustBank {
-	
-	pub fn connect() -> Chan<MustBankInComm> {
-	
-		let (port, chan ) = stream();
-		MustBank::loop_in_spawn( port );
-		chan
-	}
-	
-	priv fn loop_in_spawn( port: Port< MustBankInComm > ) {
-	
-		do spawn {
-			let ( user_parts_chan, admin_parts_chan ) = MustBank::load_parts();  //leaving the warning to remind me to tidy this up
-			let user_parts_chan = SharedChan( user_parts_chan );
-			loop { 
-				Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( port.recv(), user_parts_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
-			}
-		}		
-	}
+#[test]
+fn run_test_strand() {
 
-	priv fn load_parts() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
-	
-		let ( user_chan, admin_chan ) = ParTs::connect();
-		match {	let ( c, p ) = oneshot::init();
-				admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) ); // FileAppendJSON
-				recv_one( p )
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
+	let must_bank_in = MustBank::connect();
+	let max = 1000i;
+	let mut i = 1i;
+	while i <= max {
+		let mut doc = ~LinearMap::new();
+		doc.insert( ~"message",String( ~"must_bank " + i.to_str() + " reporting for duty." ) );
+		let mut args = ~LinearMap::new();
+		args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
+		args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
+		args.insert( ~"must", Must::new().to_json() );	
+		args.insert( ~"doc", doc.to_json() );
+		args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+		let ( c, p ) = oneshot::init();
+		must_bank_in.send( MBTranscript( args, c ) );
+		match recv_one( p ) {
+			Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
+				//io::println( std::json::to_pretty_str(&(t_key.to_json())));
+			}
+			Err( _ ) => { fail!(); }
 		}
-		
-		match {	let ( c, p ) = oneshot::init();
-				admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) ); // ErrFit
-				recv_one( p )
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
-		}
-		( user_chan, admin_chan )
+		i += 1;
 	}
+	let ( c, p ) = oneshot::init();
+	must_bank_in.send( MBRelease( c ) );
+	recv_one( p );  // wait for the ack
+	io::println( ~"reminder: check and delete test.json" );
 }
