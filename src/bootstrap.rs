@@ -388,8 +388,9 @@ impl Bootstrap {
 	
 	 	let mut spec = ~LinearMap::new();
 	 	spec.insert(~"spec_key",String(Bootstrap::jah_corrupted_spec_key()));
-	 	let mut allowed = LinearMap::new();
+	 	let mut allowed = ~LinearMap::new();
 	 	allowed.insert(~"allowed", List(~[]) ); 
+	 	spec.insert(~"allowed", allowed.to_json() ); 
 	 	spec		
 	}
 	

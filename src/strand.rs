@@ -112,51 +112,37 @@ impl Ribosome {
 					rib_chan.send( EndOfStrand );
 					break;
 				}
-				let mut break_again = false;
-				loop {
-					let logic = copy strand[ pos ];
-					match logic {
-						OkErr( ok_fit_reg_key, _ ) => {
-							rib_chan.send( DoFit( copy ok_fit_reg_key ) );
-							break;
-						}
-						KeyMatch( args_key, strand_map ) => {
-							let val = { 
-								let ( c, p ) = oneshot::init();
-								arg_bank.send( GetStr( copy args_key, c ) );
-								recv_one( p )
-								};
-							match val {
-								Some( key ) => { 
-									strand = Ribosome::get_strand( strand_map.get_strand_key( key ) );
-									pos = 0;
-								} None => {
-									rib_chan.send( LogicErr( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy args_key, ~"euG3S9MfQQmlRe6B", ~"strand.rs" ) ) );
-									break_again = true;
-									break;
-								}
+				let logic = copy strand[ pos ];
+				match logic {
+					OkErr( ok_fit_reg_key, err_strand_key ) => {
+						rib_chan.send( DoFit( copy ok_fit_reg_key ) );
+						let reply: LogicInComm = rib_port.recv();
+						match reply {
+							NextOk => { pos += 1; }
+							NextErr => {
+								strand = Ribosome::get_strand( err_strand_key );
+								pos = 0;							
+							}
+							NextEnd => {
+								break;
+							}
+						}						
+					}
+					KeyMatch( args_key, strand_map ) => {
+						let val = { 
+							let ( c, p ) = oneshot::init();
+							arg_bank.send( GetStr( copy args_key, c ) );
+							recv_one( p )
+							};
+						match val {
+							Some( key ) => { 
+								strand = Ribosome::get_strand( strand_map.get_strand_key( key ) );
+								pos = 0;
+							} None => {
+								rib_chan.send( LogicErr( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), copy args_key, ~"euG3S9MfQQmlRe6B", ~"strand.rs" ) ) );
+								break;
 							}
 						}
-					}
-				}
-				if break_again { break; }
-				let reply: LogicInComm = rib_port.recv();
-				match reply {
-					NextOk => { pos += 1; }
-					NextErr => {
-						match copy strand[ pos ] {
-							OkErr( _ , err_strand_key ) => {
-								strand = Ribosome::get_strand( err_strand_key );
-								pos = 0;
-							} 
-							_ => {
-								rib_chan.send( LogicErr( Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"not OkErr", ~"qu0Mbo5S23uVXyXy", ~"strand.rs" ) ) );
-								break;								
-							}							
-						}
-					}
-					NextEnd => {
-						break;
 					}
 				}
 			}
@@ -184,7 +170,7 @@ impl Ribosome {
 			//Add document
 			~"0loMIC2O3UW1yuTW" => { ~[ OkErr( ~"S68yWotrIh06IdE8", ~"DROOg7Vt2GXiVl00" ) ] }
 			//Error output to terminal
-			~"DROOg7Vt2GXiVl00" => { ~[ OkErr( ~"EHR6DFySwtSHzlb2", ~"fUhzdaBaEYITxXET" ) ] }
+			~"DROOg7Vt2GXiVl00" => { ~[ OkErr( ~"Zbh4OJ4uE1R1Kkfr", ~"fUhzdaBaEYITxXET" ) ] }
 			//Empty strand
 			~"fUhzdaBaEYITxXET" => { ~[] }
 			~"o88KanesoJ6J19uN" => { 
@@ -230,10 +216,10 @@ fn various() {
 		DoFit( key ) => { assert!( key == ~"S68yWotrIh06IdE8" ) }
 		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
-	}	
+	}
 	chan.send( NextErr );
 	match port.recv() {
-		DoFit( key ) => { assert!( key == ~"EHR6DFySwtSHzlb2" ) } // the first fit in the error strand
+		DoFit( key ) => { assert!( key == ~"Zbh4OJ4uE1R1Kkfr" ) } // the first fit in the error strand
 		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}

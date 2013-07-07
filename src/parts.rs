@@ -60,7 +60,7 @@ enum ParTOutComm {
 
 enum ParTInAdminComm {
 	AddParT( ~str, ChanOne<Result< bool, ~Object >> ), // ( reg_key, result_chan ),
-	ParTsRelease
+	ParTsRelease( ChanOne<()> )
 }
 
 impl ParTs {
@@ -89,13 +89,21 @@ impl ParTs {
 								}
 							}
 						},
-						ParTsRelease => {
-							for parts.each |&(_, part)| {
-								let chan = part.chan.clone();
-								chan.send( ParCommEndChan );
+						ParTsRelease( ack_chan ) => {
+							loop {
+					            do parts.consume |key, part| {
+   									let chan = part.chan.clone();
+									let ( c, p ) = oneshot::init();
+									chan.send( ParCommEndChan( c ) );
+									recv_one( p );
+									io::println( ~"released " + copy key );
+            					}
+								break_again = true;
+								io::println( ~"sending ack" );
+								ack_chan.send( () );
+								io::println( ~"sent ack" );
+								break;
 							}
-							break_again = true;
-							break;
 						}
 					}
 				}
@@ -119,6 +127,7 @@ impl ParTs {
 				}
 				if !recvd { task::yield(); }				
 			}
+			
 		}	
 		( user_chan, admin_chan )
 	}
@@ -245,6 +254,11 @@ fn various_parts() {
 			fail!();
 		}
 	}
-	admin_chan.send( ParTsRelease );
+	let ( c, p ) = oneshot::init();
+	admin_chan.send( ParTsRelease( c ) );
+	io::println( ~"ack receiving" );
+	recv_one( p );
+	io::println( ~"ack recieved" );
+	
 }	
 

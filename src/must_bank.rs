@@ -78,14 +78,18 @@ impl MustBank {
 					match port.recv() {
 						MBTranscript( args, chan_one ) => {
 							t_count += 1;
-							Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
+							io::println( ~"t_count = " + t_count.to_str() );
+							Transcriptor::connect( ~"DROOg7Vt2GXiVl00").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 						}
 						MBRelease( ack_chan ) => {
 							while t_count > 0 { //TODO: put a timeout here
 								goodby_port.recv();
 								t_count -= 1;
+								io::println( ~"t_count = " + t_count.to_str() );
 							}
-							admin_parts_chan.send( ParTsRelease );
+							let ( c, p ) = oneshot::init();
+							admin_parts_chan.send( ParTsRelease( c ) );
+							recv_one( p );
 							ack_chan.send(());
 							break;
 						}
@@ -144,7 +148,7 @@ impl Transcriptor {
 					match rib_port.recv() {
 						DoFit( key ) => { key }
 						LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json())));break; } //  <- temp band-aid, pure logic errors should be pretty rare 
-						EndOfStrand	=> { break; }
+						EndOfStrand	=> { io::println( ~"EndOfStrand" ); break; }
 					}};
 				let spec_key = { //get the latest spec that was loaded in the arg bank
 					match { let ( c, p ) = oneshot::init();
@@ -156,7 +160,7 @@ impl Transcriptor {
 				let args = { 
 					match Transcriptor::speced_arg_excerpt( Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
 						Ok( args ) => { args }
-						Err( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); break; }  //Reporting this error will require the indexes be up and running
+						Err( err ) => { io::println( ~"speced_arg_excerpt" ); io::println( std::json::to_pretty_str(&(err.to_json()))); break; }  //Reporting this error will require the indexes be up and running
 					}};																						//Transcribing this can get tied in with the rest of the reporting
 				// get the Par chan and send args
 				let fo: FitOutcome = {
@@ -183,7 +187,7 @@ impl Transcriptor {
 						rib_chan.send( NextErr );
 					}
 					FitSysErr( err ) => {
-						io::println( JahArgs::new( err ).to_str() );
+						io::println( ~"dgfhjk" + JahArgs::new( err ).to_str() );
 						break;
 					}
 				}
@@ -254,12 +258,13 @@ impl Transcriptor {
 	}
 }
 
-#[test]
-fn run_test_strand() {
+/*#[test]
+fn add_document_strand() {
 
 	let must_bank_in = MustBank::connect();
 	let max = 1000i;
 	let mut i = 1i;
+	io::println( ~"Inserting " + max.to_str() + " documents." );
 	while i <= max {
 		let mut doc = ~LinearMap::new();
 		doc.insert( ~"message",String( ~"must_bank " + i.to_str() + " reporting for duty." ) );
@@ -283,4 +288,31 @@ fn run_test_strand() {
 	must_bank_in.send( MBRelease( c ) );
 	recv_one( p );  // wait for the ack
 	io::println( ~"reminder: check and delete test.json" );
+}*/
+
+#[test]
+fn error_strand() {
+	
+	let must_bank_in = MustBank::connect();
+	let mut doc = ~LinearMap::new();
+	doc.insert( ~"message",String( ~"must_bank error reporting for duty." ) );
+	let mut args = ~LinearMap::new();
+	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
+	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
+	args.insert( ~"must", Must::new().to_json() );	
+	args.insert( ~"doc", doc.to_json() );
+	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+	let ( c, p ) = oneshot::init();
+	must_bank_in.send( MBTranscript( args, c ) );
+	match recv_one( p ) {
+		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
+			//io::println( std::json::to_pretty_str(&(t_key.to_json())));
+		}
+		Err( err ) => {io::println( std::json::to_pretty_str(&(err.to_json()))); fail!(); }
+	}
+	let ( c2, p2 ) = oneshot::init();
+	task::yield();
+	must_bank_in.send( MBRelease( c2 ) );
+	recv_one( p2 );  // wait for the ack
+	io::println( ~"Check that the error output was written to console" );
 }

@@ -16,7 +16,7 @@ extern mod std;
 extern mod core;
 extern mod fit;
 use std::time::Timespec;
-use fit::{ Parfitable, DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
+use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
 use std::json::{ Object };
 use core::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use core::task::{ spawn };
@@ -53,7 +53,7 @@ struct Par {
 
 enum ParInComm {
 	ParTrans( ~Object, ChanOne<FitOutcome> ), // ( t_key, args )
-	ParCommEndChan // TODO: move this to an admin channel
+	ParCommEndChan( ChanOne<()> )
 }
 
 enum SpawnComm {
@@ -114,15 +114,15 @@ impl Par {
 							nsec_diff = 1000000000 + nsec_diff;
 							sec_diff -= 1;
 						}
-					}	
+					}
 					home_chan.send ( FitOutcome {
 						started: start,
 						span_sec: sec_diff.to_i32(),
 						span_nsec: nsec_diff.to_i32(),
 						outcome: outcome,
 						spawns: spawns
-					} );			
-					par_chan.send( 1i ); //sending a notice to decrement the spawn counter				
+					} );		
+					par_chan.send( 1i ); //sending a notice to decrement the spawn counter			
 				}
 			}
 		}
@@ -145,21 +145,28 @@ impl Par {
 						},
 						RecvGoodByPort => {
 							good_by_port.recv(); // spawn is saying good-by
-							current_spawns -= 1;		
+							current_spawns -= 1;
+							io::println(~"spawns = " + current_spawns.to_str() );		
 						},
 						RecvInPort => {
 							let new_req = in_port.recv();
-							current_spawns += 1;
 							match new_req {
 								ParTrans(  args, home_chan ) => {
+									current_spawns += 1;
+									io::println(~"spawns = " + current_spawns.to_str() );
 									let spawn_chan = Par::go();
 									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
-								ParCommEndChan => { 
-									//I am considering letting spawned tasks finish
-									//but not in round 1
-									fit_ch.clone().send( ParFitCommEndChan );
-									return; 
+								ParCommEndChan( ack_chan ) => {
+									while current_spawns > 0 {
+										good_by_port.recv(); // spawn is saying good-by
+										current_spawns -= 1;	
+										io::println(~"spawns = " + current_spawns.to_str() );	
+									}
+									let fc = fit_ch.clone();
+									fc.send( ParFitCommEndChan );
+									ack_chan.send( () );
+									break; 
 								}
 							}					
 						}				

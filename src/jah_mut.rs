@@ -189,6 +189,7 @@ impl JahMut {
 					}
 				}
 				if release {
+					io::println( ~"closing arg bank" );
 					break;
 				}
 			}	
