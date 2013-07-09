@@ -13,15 +13,14 @@
 //	./err_fit-tests
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod fit;
-extern mod bootstrap;
 extern mod jah_spec;
 extern mod jah_args;
-use core::comm::{ stream, Port, Chan };  //, SharedChan
-use std::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
-use bootstrap::{ Bootstrap };
-use core::hashmap::linear::LinearMap;
+use std::comm::{ stream, Port, Chan };  //, SharedChan
+use extra::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
+use std::io::println;
+use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk};  //, FitSysErr, FitErr, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced }; 
 use jah_args::{ JahArgs };
@@ -78,8 +77,8 @@ impl ErrFit {
 			loop {
 				match par_port.recv() {
 		  			DoFit( args, home_chan ) => {
-		  				io::println( JahArgs::new( args ).to_str() );
-		  				let mut r_args = ~LinearMap::new();
+		  				println( JahArgs::new( args ).to_str() );
+		  				let mut r_args = ~HashMap::new();
 		  				r_args.insert(  ~"spec_key", String(~"er5OWig71VG9oNjK").to_json() );
 		 				home_chan.send( FitOk( copy r_args ) );
 		  			}

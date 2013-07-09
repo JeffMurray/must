@@ -13,13 +13,13 @@
 #[link(name = "par", vers = "1.0")];
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod fit;
-use std::time::Timespec;
+use extra::time::Timespec;
 use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
-use std::json::{ Object };
-use core::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
-use core::task::{ spawn };
+use extra::json::{ Object };
+use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
+use std::task::{ spawn, yield };
 
 //	A Par (Programmable Argument Relay) a Rust impl that with each request, takes some args and 
 //	spawns a message for a Fit (Functionally Isolated Transaction) and waits for it to perform some work.  
@@ -39,7 +39,7 @@ use core::task::{ spawn };
 //		(note: It intuitively seems right that limiting concurrent spawns per relay to 20 or so would
 //		serve as a good way to insure all other relays get adequate processor time.)
 
-//	*Take advantage of core::comm and std::comm task communication ports and chans.
+//	*Take advantage of std::comm ports and chans.
 
 //	*Natively collect monitoring detail that will include:
 //  -start time: that the the Par calls send to the Fit.  
@@ -102,11 +102,11 @@ impl Par {
 		do spawn {
 			match in_port.recv() {
 				SpawnDoFit( args, fit_chan, home_chan, par_chan, spawns ) => {
-					let start = std::time::at_utc( std::time::get_time() ).to_timespec();
-					let ( c, p ) = oneshot::init();
+					let start = extra::time::at_utc( extra::time::get_time() ).to_timespec();
+					let ( p, c ) = oneshot();
 					fit_chan.send( DoFit( copy args, c ) );
 					let outcome =  recv_one( p );
-					let end = std::time::at_utc( std::time::get_time() ).to_timespec();
+					let end = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let mut sec_diff = end.sec - start.sec;
 					let mut nsec_diff = end.nsec - start.nsec;
 					if sec_diff > 0 { //I could not find a native timespan function at the time I did this
@@ -133,27 +133,28 @@ impl Par {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
 		let ( good_by_port, good_by_chan ) = stream();
-		let fit_ch = SharedChan( fit_chan );
-		let good_by_chan = SharedChan( good_by_chan );
+		let fit_ch = SharedChan::new( fit_chan );
+		let good_by_chan = SharedChan::new( good_by_chan );
 		do spawn  {
 			let mut current_spawns = 0u;
 			loop {
-				for Par::to_do_list( in_port.peek(), good_by_port.peek(), current_spawns, spawn_cap ).each | to_do_item | {
+				let to_do_list = Par::to_do_list( in_port.peek(), good_by_port.peek(), current_spawns, spawn_cap );
+				for to_do_list.iter().advance | to_do_item | {
 					match *to_do_item {
 						Yield => {
-							task::yield();
+							yield();
 						},
 						RecvGoodByPort => {
 							good_by_port.recv(); // spawn is saying good-by
 							current_spawns -= 1;
-							io::println(~"spawns = " + current_spawns.to_str() );		
+							println(~"spawns = " + current_spawns.to_str() );		
 						},
 						RecvInPort => {
 							let new_req = in_port.recv();
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
-									io::println(~"spawns = " + current_spawns.to_str() );
+									println(~"spawns = " + current_spawns.to_str() );
 									let spawn_chan = Par::go();
 									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
@@ -161,7 +162,7 @@ impl Par {
 									while current_spawns > 0 {
 										good_by_port.recv(); // spawn is saying good-by
 										current_spawns -= 1;	
-										io::println(~"spawns = " + current_spawns.to_str() );	
+										println(~"spawns = " + current_spawns.to_str() );	
 									}
 									let fc = fit_ch.clone();
 									fc.send( ParFitCommEndChan );

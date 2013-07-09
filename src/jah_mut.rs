@@ -20,28 +20,27 @@
 #[link(name = "jah_mut", vers = "1.0")];
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod jah_args;
 use jah_args::{ JahArgs };
-use std::json ::{ Json, ToJson, String, Number, Boolean };
-use core::hashmap::linear::LinearMap;
-use core::task::spawn;
-use std::comm::DuplexStream;
-use core::option::{Some, None};
-use core::comm::{ChanOne, Chan, Port, oneshot, recv_one, stream};
+use extra::json ::{ Json, ToJson, String, Number, Boolean };
+use std::hashmap::HashMap;
+use std::task::{spawn, yield};
+use std::option::{Some, None};
+use std::comm::{ChanOne, Chan, Port, oneshot, recv_one, stream};
 
 enum JahMutReq {
 	GetJson( ~str, ChanOne<Option<Json>> ),
 	GetStr( ~str, ChanOne<Option<~str>>  ),
 	GetFloat( ~str, ChanOne<Option<float>> ),
 	GetBool( ~str, ChanOne<Option<bool>> ),	
-	GetMapCopy( ChanOne<Option< ~LinearMap<~str, Json>>> )
+	GetMapCopy( ChanOne<Option< ~HashMap<~str, Json>>> )
 }
 
 enum JahMutAdmin {
 	InsertOrUpdate( ~str, Json ),
-	LoadMap( ~LinearMap<~str, Json> ),
-	MergeArgs( ~LinearMap<~str, Json> ),
+	LoadMap( ~HashMap<~str, Json> ),
+	MergeArgs( ~HashMap<~str, Json> ),
 	Remove( ~str ),
 	Release
 }
@@ -67,7 +66,7 @@ impl JahMut {
 	priv fn spawn_task(  user_port: Port<JahMutReq>, admin_port: Port<JahMutAdmin> ) {
 	
 		do spawn {
-			let mut map = ~LinearMap::new();
+			let mut map = ~HashMap::new();
 			loop {
 				let to_do = {
 					let mut tds = ~[];
@@ -82,7 +81,7 @@ impl JahMut {
 					}
 					tds };
 				let mut release = false;
-				for to_do.each | td | {		
+				for to_do.iter().advance | td | {		
 					match *td {
 						RecvAdminPort => {
 							match admin_port.recv() {
@@ -102,7 +101,8 @@ impl JahMut {
 								}
 								MergeArgs( arg_map ) => {
 									let jah = JahArgs::new( arg_map );
-									for jah.arg_keys().each | key | {
+									let keys = jah.arg_keys();
+									for keys.iter().advance | key | {
 										if map.contains_key( key ) {
 											map.remove( key );
 										}
@@ -184,12 +184,12 @@ impl JahMut {
 							}			
 						}
 						JahMutYield => {
-							task::yield();
+							yield();
 						}
 					}
 				}
 				if release {
-					io::println( ~"closing arg bank" );
+					println( "closing arg bank" );
 					break;
 				}
 			}	
@@ -202,7 +202,7 @@ fn test_insert_or_update(){
 
 	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetJson( ~"is", c ) );
 		recv_one( p )
 	} {
@@ -215,7 +215,7 @@ fn test_insert_or_update(){
 		}, _ => fail!()
 	}
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"not" ) ) );
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetJson( ~"is", c ) );
 		recv_one( p )
 	} {
@@ -235,7 +235,7 @@ fn test_data_conversions(){
 
 	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetStr( ~"is", c ) );
 		recv_one( p )
 	} {
@@ -243,16 +243,16 @@ fn test_data_conversions(){
 			assert!( val == ~"ought");
 		}, _ => fail!()
 	}
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetFloat( ~"is", c ) );
 		recv_one( p )
 	} {
-		Some( val ) => {
+		Some( _ ) => {
 			fail!();
 		}, _ => {}
 	}
 	admin_chan.send( InsertOrUpdate( ~"answer", Number( 42f ) ) );	
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetFloat( ~"answer", c ) );
 		recv_one( p )
 	} {
@@ -261,7 +261,7 @@ fn test_data_conversions(){
 		}, _ => fail!()
 	}
 	admin_chan.send( InsertOrUpdate( ~"desert", Boolean( true ) ) );	
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetBool( ~"desert", c ) );
 		recv_one( p )
 	} {
@@ -270,7 +270,7 @@ fn test_data_conversions(){
 		}, _ => fail!()
 	}
 	admin_chan.send( InsertOrUpdate( ~"desert", Boolean( false ) ) );	
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 		user_chan.send( GetBool( ~"desert", c ) );
 		recv_one( p )
 	} {
@@ -286,7 +286,7 @@ fn test_remove(){
 
 	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
-	match { let ( c, p ) = oneshot::init();
+	match { let ( p, c ) = oneshot();
 		user_chan.send( GetJson( ~"is", c ) );
 		recv_one( p )
 	} {
@@ -299,9 +299,9 @@ fn test_remove(){
 		}, _ => fail!()
 	}
 	admin_chan.send( Remove( ~"is" ) );
-	match { let (c, p) = oneshot::init();
+	match { let ( p, c ) = oneshot();
 		user_chan.send( GetJson( ~"is", c ) );
-		recv_one(p)
+		recv_one( p )
 	} {
 		None => {
 			assert!( true );
@@ -315,7 +315,7 @@ fn test_get_map(){
 
 	let ( user_chan, admin_chan ) = JahMut::connect();
 	admin_chan.send( InsertOrUpdate( ~"is", String( ~"ought" ) ) );
-	match { let ( c, p ) = oneshot::init();
+	match { let ( p, c ) = oneshot();
 		user_chan.send( GetJson( ~"is", c ) );
 		recv_one( p )
 	} {
@@ -327,7 +327,7 @@ fn test_get_map(){
 			}
 		}, _ => fail!()
 	}
-	match { let ( c, p ) = oneshot::init();
+	match { let ( p, c ) = oneshot();
 		user_chan.send( GetMapCopy( c ) );
 		recv_one( p )
 	} {

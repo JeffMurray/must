@@ -13,17 +13,17 @@
 //	./jah_args-tests
 
 extern mod std;
-extern mod core;
-use std::json::{Object,String,Number,Json,List,Boolean, ToJson};//,Null,ToJson
-use core::hashmap::linear::LinearMap;
-use core::option::{ Some, None };
-
+extern mod extra;
+use extra::json::{Object,String,Number,Json,List,Boolean, ToJson};//,Null,ToJson
+use std::hashmap::HashMap;
+use std::option::{ Some, None };
+use std::to_str::ToStr;
 
 // See jah_spec.rs for a description of JahArgs
  
 struct JahArgs {
 
-	priv args: ~LinearMap<~str, Json>
+	priv args: ~HashMap<~str, Json>
 }
 
 enum GetArgErrorType {
@@ -33,7 +33,7 @@ enum GetArgErrorType {
 
 impl JahArgs {
 
-	pub fn new( args: ~LinearMap<~str, Json> ) -> ~JahArgs {
+	pub fn new( args: ~HashMap<~str, Json> ) -> ~JahArgs {
 	
 		~JahArgs { args: args }
 	}
@@ -171,8 +171,8 @@ impl JahArgs {
 	pub fn arg_keys( &self ) -> ~[ ~str ] {
 		
 		let mut keys = ~[];
-		for self.args.each |&( key, _ )| {
-			keys.push( copy *key );
+		for self.args.iter().advance |( &key, _ )| {
+			keys.push( copy key );
 		}
 		keys
 	}
@@ -180,11 +180,11 @@ impl JahArgs {
 
 //	Implements to_str()
 
-impl to_str::ToStr for JahArgs {
+impl ToStr for JahArgs {
 
 	fn to_str(&self) -> ~str {
 	
-		std::json::to_pretty_str(&(self.args.to_json()))		   	
+		extra::json::to_pretty_str(&(self.args.to_json()))		   	
 	} 
 }
 
@@ -192,7 +192,7 @@ impl to_str::ToStr for JahArgs {
 #[test]
 fn test_has_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
 	let args = JahArgs::new( map );
 	assert!( args.has_arg(&~"test_arg") && !args.has_arg(&~"missing_arg") );	
@@ -201,7 +201,7 @@ fn test_has_arg() {
 #[test]
 fn test_arg_count() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
 	let args = JahArgs::new( map );
 	assert!( args.arg_count() == 1u );	
@@ -210,7 +210,7 @@ fn test_arg_count() {
 #[test]
 fn test_json_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
 	let args = JahArgs::new( map );
 	match args.get_json_val( ~"test_arg" ) {
@@ -235,21 +235,21 @@ fn test_json_arg() {
 #[test]
 fn test_arg_keys() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg_1", 1f.to_json() );
 	map.insert( ~"test_arg_2", 2f.to_json() );
 	let args = JahArgs::new( map );
 	let arg_keys = args.arg_keys();
 	assert!( arg_keys.len() == 2u );
-	for arg_keys.each | key | {
-		assert!( *key == ~"test_arg_1" || *key == ~"test_arg_2" );
+	for arg_keys.iter().advance | key | {
+		assert!( key == &~"test_arg_1" ||key == &~"test_arg_2" );
 	}	
 }
 
 #[test]
 fn test_string_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	let str = ~"hello world";
 	map.insert( ~"test_str", str.to_json() );
 	map.insert( ~"test_not_str", 100f.to_json() );
@@ -299,7 +299,7 @@ fn test_string_arg() {
 #[test]
 fn test_number_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	let flt = 100f;
 	map.insert( ~"test_float", flt.to_json() );
 	map.insert( ~"test_not_float", true.to_json() );
@@ -348,8 +348,8 @@ fn test_number_arg() {
 #[test]
 fn test_object_arg() {
 
-	let mut map = ~LinearMap::new();
-	let mut obj = ~LinearMap::new();
+	let mut map = ~HashMap::new();
+	let mut obj = ~HashMap::new();
 	obj.insert( ~"test_key", true.to_json() );
 	map.insert( ~"test_object", obj.to_json() );
 	map.insert( ~"test_not_object", true.to_json() );
@@ -406,7 +406,7 @@ fn test_object_arg() {
 #[test]
 fn test_boolean_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	map.insert( ~"test_true", true.to_json() );
 	map.insert( ~"test_false", false.to_json() );
 	map.insert( ~"test_not_bool", 0f.to_json() );
@@ -463,7 +463,7 @@ fn test_boolean_arg() {
 #[test]
 fn test_list_arg() {
 
-	let mut map = ~LinearMap::new();
+	let mut map = ~HashMap::new();
 	let mut list = ~[ 1f.to_json(), false.to_json() ];
 	map.insert( ~"test_list", list.to_json() );
 	map.insert( ~"test_not_list", true.to_json() );

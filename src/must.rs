@@ -13,12 +13,13 @@
 
 #[link(name = "must", vers = "1.0")];
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod bootstrap;
 extern mod jah_args;
-use core::rand::RngUtil;
-use std::json ::{Json,Object,ToJson};
-use core::hashmap::linear::LinearMap;
+use std::rand::{RngUtil, rng};
+use std::to_str::{ToStr};
+use extra::json ::{Json,Object,ToJson};
+use std::hashmap::HashMap;
 use bootstrap::Bootstrap;
 use jah_args::{ JahArgs, MissingKey, WrongDataType };
  
@@ -56,8 +57,8 @@ impl Must{
 	//	the the file and b+ tree indexing system
 
 	pub fn new() -> Must {
-	
-		Must::stamped(rand::Rng().gen_str(16u))
+		let mut r = rng();
+		Must::stamped( r.gen_str(16u))
 	}
 	
 	//	Takes an existing key and returns a new Must with current time stamp
@@ -73,7 +74,7 @@ impl Must{
 	
 		//	If the whole world uses utc for time stamps
 		//	something good has to come ;)
-		let t = std::time::at_utc(std::time::get_time()).to_timespec();
+		let t = extra::time::at_utc(extra::time::get_time()).to_timespec();
 		Must { 
 			key: copy must_key,
 			sec: t.sec,
@@ -214,12 +215,12 @@ pub fn eq_must(a: &Must, b: &Must) -> bool{
 	a.key == b.key && a.sec == b.sec && a.nsec == b.nsec
 } 
 
-impl to_str::ToStr for Must {
+impl ToStr for Must {
 
 	//	Returns hyphen delimited string: key-sec-nsec
 	fn to_str(&self) -> ~str {
 
-		std::json::to_pretty_str(&(self.to_json()))   	
+		extra::json::to_pretty_str(&(self.to_json()))   	
 	} 
 }
 
@@ -228,7 +229,7 @@ impl ToJson for Must {
 	//	Returns Json Object in the Must format
 	fn to_json( &self ) -> Json {
 	
-		let mut must_spec = LinearMap::new();
+		let mut must_spec = HashMap::new();
 		must_spec.insert(~"key", self.key.to_json());
 		must_spec.insert(~"sec", self.sec.to_json());
 		must_spec.insert(~"nsec", self.nsec.to_json());
@@ -241,7 +242,7 @@ impl ToJson for @Must {
 	//	Returns Json Object in the Must format
 	fn to_json( &self ) -> Json {
     
-		let mut must_spec = LinearMap::new();
+		let mut must_spec = HashMap::new();
 		must_spec.insert(~"key", self.key.to_json());
 		must_spec.insert(~"sec", self.sec.to_json());
 		must_spec.insert(~"nsec", self.nsec.to_json());
@@ -270,9 +271,9 @@ fn test_to_str() {
 
 	let must = Must::new();
 	//	Make sure the key, sec and nsec values are always contained in to_str()
-	assert!( str::contains( must.to_str(), must.key ) 
-			&& str::contains( must.to_str(), must.sec.to_str() )  
-			&& str::contains( must.to_str(), must.nsec.to_str() ) 
+	assert!( must.to_str().contains( must.key ) && 
+			must.to_str().contains( must.sec.to_str() ) &&   
+			must.to_str().contains( must.nsec.to_str() ) 
 		);
 }
 

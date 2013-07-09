@@ -7,8 +7,8 @@
 //	except according to those terms.
 
 extern mod std;
-extern mod core;
 extern mod must;
+use std::io::{println};
 use must::{Must};
 
 // I moved the unit tests to must.rs but still use this to
@@ -19,5 +19,5 @@ use must::{Must};
 
 fn main() {
 
-	io::println(Must::new().to_str());	
+	println(Must::new().to_str());	
 }

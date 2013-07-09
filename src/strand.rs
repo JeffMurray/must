@@ -13,15 +13,15 @@
 //	./strand-tests
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod jah_mut;
 extern mod bootstrap;
 use jah_mut::{ JahMutReq, GetStr, JahMut, Release, InsertOrUpdate };
-use std::json::{ Object, String, ToJson };
+use extra::json::{ Object, String, ToJson };
 use bootstrap::{ Bootstrap };
-use core::comm::{ oneshot, recv_one, SharedChan };
-use core::hashmap::linear::LinearMap;
-use core::task::spawn;
+use std::comm::{ oneshot, recv_one, SharedChan };
+use std::hashmap::HashMap;
+use std::task::spawn;
 
 // Transactions and their arguments are monitored and shuttled around to ParTs by an ephemeral spawn 
 // created with Ribosome::connect. The Ribosome takes a Strand of Logic through a series of
@@ -64,8 +64,8 @@ struct StrandKeyMap {
 // In honor of our handy little friends
 struct Ribosome; 
 
-type MappedStrands = ~LinearMap<~str, ~str>; // match_key, strand_key
-//type LiveStrands = ~LinearMap<~str, Strand>; // match_key, strand
+type MappedStrands = ~HashMap<~str, ~str>; // match_key, strand_key
+//type LiveStrands = ~HashMap<~str, Strand>; // match_key, strand
 
 enum LogicInComm {
 	NextOk,
@@ -130,7 +130,7 @@ impl Ribosome {
 					}
 					KeyMatch( args_key, strand_map ) => {
 						let val = { 
-							let ( c, p ) = oneshot::init();
+							let ( p, c ) = oneshot();
 							arg_bank.send( GetStr( copy args_key, c ) );
 							recv_one( p )
 							};
@@ -157,7 +157,7 @@ impl Ribosome {
 		match strand_key {
 			//the start strand in Must Document System Object
 			~"UWmoVWUMfKsL8oyr" => { ~[ {
-				let mut mapped_strands =  ~LinearMap::new();
+				let mut mapped_strands =  ~HashMap::new();
 					//I can only do add document with this spec at the moment
 					mapped_strands.insert( ~"uHSQ7daYUXqUUPSo", ~"0loMIC2O3UW1yuTW" );
 					
@@ -174,7 +174,7 @@ impl Ribosome {
 			//Empty strand
 			~"fUhzdaBaEYITxXET" => { ~[] }
 			~"o88KanesoJ6J19uN" => { 
-				let mut mapped_strands = ~LinearMap::new();
+				let mut mapped_strands = ~HashMap::new();
 				mapped_strands.insert( ~"ants_are", ~"0loMIC2O3UW1yuTW" );
 				mapped_strands.insert( ~"my_friends", ~"DROOg7Vt2GXiVl00" ); 	
 				let strand_map = ~StrandKeyMap {
@@ -197,36 +197,36 @@ fn various() {
 
 	//Setup an arg_bank
 	let ( arg_bank_chan, admin_chan ) = JahMut::connect();
-	let arg_bank_chan = SharedChan( arg_bank_chan );			
+	let arg_bank_chan = SharedChan::new( arg_bank_chan );			
 	admin_chan.send ( InsertOrUpdate( ~"some_arg_key", String( ~"ants_are" ).to_json() ) );
 	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" , arg_bank_chan.clone() );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 1" ) }
-		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 2" ) }
-		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}	
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"S68yWotrIh06IdE8" ) }
-		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextErr );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Zbh4OJ4uE1R1Kkfr" ) } // the first fit in the error strand
-		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
-		DoFit( key ) => { io::println( key ); fail!() }
-		LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		DoFit( key ) => { std::io::println( key ); fail!() }
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> {  }	
 	}	
 	admin_chan.send( Release );

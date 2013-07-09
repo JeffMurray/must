@@ -13,9 +13,9 @@
 //	./fit-tests
 
 extern mod std;
-extern mod core;
-use std::json::{ Object };
-use core::comm::{ ChanOne };
+extern mod extra;
+use extra::json::{ Object };
+use std::comm::{ ChanOne };
 
 //	Functionally Isolated Task (Fit)
 // See Par.rs for more info about what a Fit is

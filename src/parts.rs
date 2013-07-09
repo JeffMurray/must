@@ -13,7 +13,7 @@
 #[link(name = "parts", vers = "1.0")];
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod par;
 extern mod fit;
 extern mod bootstrap;
@@ -30,10 +30,10 @@ use par::{ Par, ParInComm, ParTrans, ParCommEndChan, FitOutcome };
 use fit::{ Parfitable, ParFitComm, FitOk, FitErr, FitSysErr };
 use bootstrap::{ Bootstrap };
 use must::{ Must };
-use core::hashmap::linear::LinearMap;
-use std::json::{ Object, String, ToJson };
-use core::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
-use core::task::{ spawn };
+use std::hashmap::HashMap;
+use extra::json::{ Object, String, ToJson };
+use std::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
+use std::task::{ spawn, yield };
 
 //  ParTs is the place where live Parfitables and their channels can be loaded and accessed 
 
@@ -70,7 +70,7 @@ impl ParTs {
 		let ( user_port, user_chan ) = stream();
 		let ( admin_port, admin_chan ) = stream();	
 		do spawn {
-			let mut parts = ~LinearMap::new();
+			let mut parts = ~HashMap::new();
 			loop {
 				let mut recvd = false;
 				let mut break_again = false;  //Haven't figured out how to directly exit a spawn from an inner loop
@@ -93,15 +93,15 @@ impl ParTs {
 							loop {
 					            do parts.consume |key, part| {
    									let chan = part.chan.clone();
-									let ( c, p ) = oneshot::init();
+									let ( p, c ) = oneshot();
 									chan.send( ParCommEndChan( c ) );
 									recv_one( p );
-									io::println( ~"released " + copy key );
+									std::io::println( ~"released " + copy key );
             					}
 								break_again = true;
-								io::println( ~"sending ack" );
+								std::io::println( "sending ack" );
 								ack_chan.send( () );
-								io::println( ~"sent ack" );
+								std::io::println( "sent ack" );
 								break;
 							}
 						}
@@ -125,7 +125,7 @@ impl ParTs {
 						}
 					}
 				}
-				if !recvd { task::yield(); }				
+				if !recvd { yield(); }				
 			}
 			
 		}	
@@ -140,7 +140,7 @@ impl ParTs {
 		let ( port, chan ) = stream();
 		do spawn {
 			let chan_one: ChanOne<ParTOutComm> = port.recv();
-			let ( c, p ) = oneshot::init();
+			let ( p, c ) = oneshot();
 			chan_one.send( ParTChan( c ) ); // ChanOne<ParInComm>
 			par_chan.send( recv_one( p ) );
 		}
@@ -165,7 +165,7 @@ impl ParTs {
 		
 		match par.connect(fit_chan) {
 			Ok( par_chan ) => {
-				Ok( ~ParT { chan: SharedChan( par_chan ), specs_in: copy fit.spec_keys_in(), specs_out: copy fit.spec_keys_out() } )
+				Ok( ~ParT { chan: SharedChan::new( par_chan ), specs_in: copy fit.spec_keys_in(), specs_out: copy fit.spec_keys_out() } )
 			}
 			Err( err ) => {
 				Err( Bootstrap::mk_mon_err( ~[err] ) )
@@ -184,7 +184,7 @@ impl ParTs {
 				//	Returns Ok spec 5W6emlWjT77xoGOH Err spec VWnPY4CStrXkk4SU
 				
 				let fit = ~FileAppendJSON{ file_args: {
-						let mut config = ~LinearMap::new();
+						let mut config = ~HashMap::new();
 						config.insert( ~"path", String(~"test.json").to_json() );
 						config.insert( ~"num", 1u.to_json() );
 						config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
@@ -197,7 +197,7 @@ impl ParTs {
 				// Takes any Object
 				// Returns spec er5OWig71VG9oNjK (the empty spec) 
 
-				ParTs::start_part( Par::new( 20u ), ~ErrFit{ settings: ~LinearMap::new() } )
+				ParTs::start_part( Par::new( 20u ), ~ErrFit{ settings: ~HashMap::new() } )
 			}			
 			_ => {
 				Err( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"9ZwGwLZSSwByYfs7", ~"parts.rs" ) )
@@ -210,33 +210,33 @@ impl ParTs {
 fn various_parts() {
 	
 	let ( user_chan, admin_chan ) = ParTs::connect();
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) );
 			recv_one( p )
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
-	match {	let ( c, p ) = oneshot::init();
+	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) );
 			recv_one( p )
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
-	let mut doc = ~LinearMap::new();
+	let mut doc = ~HashMap::new();
 	doc.insert( ~"message",String( ~"Hello from inside ParTs::connect()!" ) );
-	let mut args = ~LinearMap::new();
+	let mut args = ~HashMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-	let fo: FitOutcome = match { let ( c, p ) = oneshot::init();
+	let fo: FitOutcome = match { let ( p, c ) = oneshot();
 		user_chan.send( GetParTChan( ~"S68yWotrIh06IdE8", c ) ); // ChanOne<ParTOutComm>
 		recv_one( p )
 		} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
-				let ( c2, p2 ) = oneshot::init();
+				let ( p2, c2 ) = oneshot();
 				part_chan.send( ParTrans( copy args , c2 ) ); // ChanOne<ParTOutComm>
 				recv_one( p2 )
 			} 
@@ -254,11 +254,11 @@ fn various_parts() {
 			fail!();
 		}
 	}
-	let ( c, p ) = oneshot::init();
+	let ( p, c ) = oneshot();
 	admin_chan.send( ParTsRelease( c ) );
-	io::println( ~"ack receiving" );
+	std::io::println( ~"ack receiving" );
 	recv_one( p );
-	io::println( ~"ack recieved" );
+	std::io::println( ~"ack recieved" );
 	
 }	
 

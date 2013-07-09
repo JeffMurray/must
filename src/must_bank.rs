@@ -13,7 +13,7 @@
 //	./must_bank-tests
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod jah_mut;
 extern mod jah_spec;
 extern mod jah_args;
@@ -31,11 +31,11 @@ use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan
 use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
 use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release }; // 
-use std::json::{ Object, String, ToJson };
+use extra::json::{ Object, String, ToJson };
 use bootstrap::{ Bootstrap };
-use core::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
-use core::hashmap::linear::LinearMap;
-use core::task::{ spawn };
+use std::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
+use std::hashmap::HashMap;
+use std::task::{ spawn, yield };
 
 struct MustBank;
 
@@ -59,17 +59,14 @@ impl MustBank {
 	
 		do spawn {
 			let ( user_parts_chan, admin_parts_chan ) = MustBank::load_parts();  //leaving the warning to remind me to tidy this up
-			let user_parts_chan = SharedChan( user_parts_chan );
+			let user_parts_chan = SharedChan::new( user_parts_chan );
 			let ( goodby_port, goodby_chan ) = stream();
-			let goodby_chan = SharedChan( goodby_chan );
+			let goodby_chan = SharedChan::new( goodby_chan );
 			let mut t_count = 0u;
-			let mut releasing = false;
 			loop {
 				let ( recv_trans, recv_goodby ) = {
 					if t_count == 0u {
 						( true, false )
-					} else if releasing {
-						( false, true )
 					} else {
 						( port.peek(), goodby_port.peek() )
 					}};
@@ -78,16 +75,16 @@ impl MustBank {
 					match port.recv() {
 						MBTranscript( args, chan_one ) => {
 							t_count += 1;
-							io::println( ~"t_count = " + t_count.to_str() );
-							Transcriptor::connect( ~"DROOg7Vt2GXiVl00").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
+							println( ~"t_count = " + t_count.to_str() );
+							Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 						}
 						MBRelease( ack_chan ) => {
 							while t_count > 0 { //TODO: put a timeout here
 								goodby_port.recv();
 								t_count -= 1;
-								io::println( ~"t_count = " + t_count.to_str() );
+								println( ~"t_count = " + t_count.to_str() );
 							}
-							let ( c, p ) = oneshot::init();
+							let ( p, c ) = oneshot();
 							admin_parts_chan.send( ParTsRelease( c ) );
 							recv_one( p );
 							ack_chan.send(());
@@ -100,7 +97,7 @@ impl MustBank {
 					t_count -= 1;
 				}
 				if !( recv_trans || recv_goodby ) {
-					task::yield();
+					yield();
 				}
 			}
 		}		
@@ -109,7 +106,7 @@ impl MustBank {
 	priv fn load_parts() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
 	
 		let ( user_chan, admin_chan ) = ParTs::connect();
-		match {	let ( c, p ) = oneshot::init();
+		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) ); // FileAppendJSON
 				recv_one( p )
 			} {
@@ -117,7 +114,7 @@ impl MustBank {
 				Err( _ ) => { fail!(); }
 		}
 		
-		match {	let ( c, p ) = oneshot::init();
+		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) ); // ErrFit
 				recv_one( p )
 			} {
@@ -140,39 +137,39 @@ impl Transcriptor {
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
 			let ( arg_bank_user_chan, arg_bank_admin_chan ) = JahMut::connect();  //  <-- the arg bank
-			let arg_bank_sh_chan = SharedChan( arg_bank_user_chan );
+			let arg_bank_sh_chan = SharedChan::new( arg_bank_user_chan );
 			arg_bank_admin_chan.send( LoadMap( copy args ) );
 			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key, arg_bank_sh_chan.clone() );
 			loop {
 				let reg_key = { 
 					match rib_port.recv() {
 						DoFit( key ) => { key }
-						LogicErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json())));break; } //  <- temp band-aid, pure logic errors should be pretty rare 
-						EndOfStrand	=> { io::println( ~"EndOfStrand" ); break; }
+						LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json())));break; } //  <- temp band-aid, pure logic errors should be pretty rare 
+						EndOfStrand	=> { std::io::println( "EndOfStrand" ); break; }
 					}};
 				let spec_key = { //get the latest spec that was loaded in the arg bank
-					match { let ( c, p ) = oneshot::init();
+					match { let ( p, c ) = oneshot();
 						arg_bank_sh_chan.clone().send( GetStr( ~"spec_key", c ) );
 						recv_one( p ) }
 					{ 	Some( spec_key ) => { spec_key }
-						None => { io::println( ~"no spec key found in must_bank.rs" ); break; }
+						None => { std::io::println( "no spec key found in must_bank.rs" ); break; }
 					}};
 				let args = { 
 					match Transcriptor::speced_arg_excerpt( Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
 						Ok( args ) => { args }
-						Err( err ) => { io::println( ~"speced_arg_excerpt" ); io::println( std::json::to_pretty_str(&(err.to_json()))); break; }  //Reporting this error will require the indexes be up and running
+						Err( err ) => { std::io::println( "speced_arg_excerpt" ); std::io::println( extra::json::to_pretty_str(&(err.to_json()))); break; }  //Reporting this error will require the indexes be up and running
 					}};																						//Transcribing this can get tied in with the rest of the reporting
 				// get the Par chan and send args
 				let fo: FitOutcome = {
-					match { let ( c, p ) = oneshot::init();
+					match { let ( p, c ) = oneshot();
 						parts_chan.send( GetParTChan( reg_key, c ) ); // ChanOne<ParTOutComm>
 						recv_one( p )
 						} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
-								let ( c2, p2 ) = oneshot::init();
+								let ( p2, c2 ) = oneshot();
 								part_chan.send( ParTrans( copy args , c2 ) ); // ChanOne<ParTOutComm>
 								recv_one( p2 )
 							} 
-							ParTErr( err ) => { io::println( std::json::to_pretty_str(&(err.to_json()))); break; }
+							ParTErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); break; }
 					}};
 				// Record the fit performance once the indexing system is up and running
 				// update the arg_bank
@@ -187,7 +184,7 @@ impl Transcriptor {
 						rib_chan.send( NextErr );
 					}
 					FitSysErr( err ) => {
-						io::println( ~"dgfhjk" + JahArgs::new( err ).to_str() );
+						std::io::println( "dgfhjk" + JahArgs::new( err ).to_str() );
 						break;
 					}
 				}
@@ -221,17 +218,16 @@ impl Transcriptor {
 	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~Object, ~Object> {
 		
 		let jah_spec = JahSpec::new( spec );
-		let mut rval = ~LinearMap::new();
-		for { match jah_spec.allowed_keys() {
-				Ok( keys ) => { keys } 
-				Err( err ) => { return Err( err ); }
-			}
-		}.each | key | 
-		{	match {
-				let ( c, p ) = oneshot::init();
+		let mut rval = ~HashMap::new();
+		let keys = { match jah_spec.allowed_keys() {
+			Ok( keys ) => { keys } 
+			Err( err ) => { return Err( err ); }
+			}};
+		for keys.iter().advance | key | {
+				match {let ( p, c ) = oneshot();
 				arg_bank_chan.send( GetJson( copy *key, c ) );
 				recv_one( p )
-				}
+			}
 			{	Some( arg_val ) => { 
 					rval.insert( copy *key, arg_val ); // <--
 				}
@@ -251,68 +247,63 @@ impl Transcriptor {
 	//t = transcription.
 	priv fn make_t_key( t_key: Must ) -> ~Object {
 	
-		let mut rval= ~LinearMap::new();
+		let mut rval= ~HashMap::new();
 		rval.insert( ~"t_key", t_key.to_json() );
 		rval.insert( ~"spec_key", String( ~"CelvpCNzHNiPPUKL" ) );		
 		rval
 	}
 }
 
-/*#[test]
+#[test]
 fn add_document_strand() {
 
 	let must_bank_in = MustBank::connect();
-	let max = 1000i;
+	let must_bank_in = SharedChan::new( must_bank_in );
+	let max = 2i;
 	let mut i = 1i;
-	io::println( ~"Inserting " + max.to_str() + " documents." );
+	std::io::println( "Inserting " + max.to_str() + " documents." );
 	while i <= max {
-		let mut doc = ~LinearMap::new();
-		doc.insert( ~"message",String( ~"must_bank " + i.to_str() + " reporting for duty." ) );
-		let mut args = ~LinearMap::new();
-		args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
-		args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-		args.insert( ~"must", Must::new().to_json() );	
-		args.insert( ~"doc", doc.to_json() );
-		args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-		let ( c, p ) = oneshot::init();
-		must_bank_in.send( MBTranscript( args, c ) );
-		match recv_one( p ) {
-			Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
-				//io::println( std::json::to_pretty_str(&(t_key.to_json())));
+		let mbs = must_bank_in.clone();
+		let count = i;
+		do spawn {
+			let mut doc = ~HashMap::new();
+			doc.insert( ~"message",String( ~"must_bank " + count.to_str() + " reporting for duty." ) );
+			let mut args = ~HashMap::new();
+			args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
+			args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
+			args.insert( ~"must", Must::new().to_json() );	
+			args.insert( ~"doc", doc.to_json() );
+			args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+			let ( p, c ) = oneshot();
+			mbs.send( MBTranscript( args, c ) );
+			match recv_one( p ) {
+				Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
+					//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
+				}
+				Err( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!(); }
 			}
-			Err( _ ) => { fail!(); }
 		}
 		i += 1;
 	}
-	let ( c, p ) = oneshot::init();
-	must_bank_in.send( MBRelease( c ) );
-	recv_one( p );  // wait for the ack
-	io::println( ~"reminder: check and delete test.json" );
-}*/
-
-#[test]
-fn error_strand() {
-	
-	let must_bank_in = MustBank::connect();
-	let mut doc = ~LinearMap::new();
+	let mut doc = ~HashMap::new();
 	doc.insert( ~"message",String( ~"must_bank error reporting for duty." ) );
-	let mut args = ~LinearMap::new();
+	let mut args = ~HashMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-	let ( c, p ) = oneshot::init();
-	must_bank_in.send( MBTranscript( args, c ) );
+	let ( p, c ) = oneshot();
+	must_bank_in.clone().send( MBTranscript( args, c ) );
 	match recv_one( p ) {
-		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
-			//io::println( std::json::to_pretty_str(&(t_key.to_json())));
+		Ok( t_key ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
+			std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 		}
-		Err( err ) => {io::println( std::json::to_pretty_str(&(err.to_json()))); fail!(); }
+		Err( err ) => {std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!(); }
 	}
-	let ( c2, p2 ) = oneshot::init();
-	task::yield();
-	must_bank_in.send( MBRelease( c2 ) );
-	recv_one( p2 );  // wait for the ack
-	io::println( ~"Check that the error output was written to console" );
+	let ( p, c ) = oneshot();
+    must_bank_in.clone().send( MBRelease( c ) );
+	recv_one( p );  // wait for the ack
+	std::io::println( "reminder: check and delete test.json" );
 }
+

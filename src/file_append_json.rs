@@ -13,18 +13,19 @@
 //	./file_append_json-tests
 
 extern mod std;
-extern mod core;
+extern mod extra;
 extern mod fit;
 extern mod bootstrap;
 extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
-use core::io::{ SeekEnd };
-use core::comm::{ stream, Port, Chan, oneshot, recv_one };
-use std::json::{ Object, ToJson, PrettyEncoder, String, List };//,Number, Json 
+use std::io::{ SeekEnd };
+use std::comm::{ stream, Port, Chan, oneshot, recv_one };
+use extra::json::{ Object, ToJson, PrettyEncoder, String, List };//,Number, Json 
 use bootstrap::{ Bootstrap };
-use std::serialize::Encodable;
-use core::hashmap::linear::LinearMap;
+use extra::serialize::Encodable;
+use std::io::{ println, Create, Append };
+use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr}; //, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
@@ -95,15 +96,15 @@ impl FileAppendJSON {
     			return Err( fit_sys_err );
     		}
     		}};
-    		io::println( file_path );
+    		println( file_path );
     	let path = Path( file_path );
     	let spec = JahSpec::new( Bootstrap::find_spec( ~"uHSQ7daYUXqUUPSo" ) );
 		if spec.spec_key() !=  ~"uHSQ7daYUXqUUPSo" {
 			return Err( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
 		}				
 		do spawn {	
-			let append_writer_rslt = core::io::mk_file_writer( &path, &[io::Create, io::Append] );
-			let file_reader_rslt = core::io::file_reader( &path );
+			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
+			let file_reader_rslt = std::io::file_reader( &path );
 			if append_writer_rslt.is_err() {
 				match in_port.recv() {
 		  			DoFit( args, home_chan ) => {
@@ -137,8 +138,8 @@ impl FileAppendJSON {
 									let start_pos = file_reader.tell();
 									
 									//write the doc with all of the args
-									let encoder = PrettyEncoder(append_writer);
-				        			args.encode(&encoder);						
+									let mut encoder = PrettyEncoder(append_writer);
+				        			args.encode(&mut encoder);						
 									append_writer.flush();
 									
 									//get the new ending position of the file
@@ -146,17 +147,17 @@ impl FileAppendJSON {
 									
 									//calculate the slice info that will get stored with the documents
 									//master index
-							        let mut slice = ~LinearMap::new();
+							        let mut slice = ~HashMap::new();
 			        				slice.insert( ~"pos", start_pos.to_json() );
 								    slice.insert( ~"len", ( file_reader.tell() - start_pos ).to_json() );
 								    slice.insert( ~"fn", file_num.to_json() );
-									slice.encode(&encoder);
+									slice.encode(&mut encoder);
 									
 									//write the slice info to the file for redundancy purposes
 									append_writer.flush();
 									
 									//put the return args together and send them home
-									let mut r_args = ~LinearMap::new();
+									let mut r_args = ~HashMap::new();
 									r_args.insert( ~"slice", slice.to_json() );
 									r_args.insert( ~"spec_key", (~"WZody857ygg3YF1x").to_json() );
 									home_chan.send( FitOk( copy r_args ) );
@@ -175,11 +176,11 @@ impl FileAppendJSON {
 	
 	priv fn arg_out( &self ) -> ~Object {
 	
-		let mut allowed = ~LinearMap::new();
+		let mut allowed = ~HashMap::new();
 		allowed.insert( ~"path", ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
 		allowed.insert( ~"num", ~[Bootstrap::arg_rule_num_must_be_number().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
 		allowed.insert( ~"spec_key", ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] );
-		let mut spec = ~LinearMap::new();
+		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", allowed.to_json() );
 		spec.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
 		spec
@@ -206,7 +207,7 @@ impl FileAppendJSON {
 fn test_write_and_read() {
 	let fit = ~FileAppendJSON{ 
 		file_args: {
-			let mut startup_args = ~LinearMap::new();
+			let mut startup_args = ~HashMap::new();
 			startup_args.insert( ~"path", String(~"test.json").to_json() );
 			startup_args.insert( ~"num", 1u.to_json() );
 			startup_args.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
@@ -218,19 +219,19 @@ fn test_write_and_read() {
 				chan
 			}
 			Err( obj ) => {
-				io::println( JahArgs::new( obj ).to_str() );
+				println( JahArgs::new( obj ).to_str() );
 				fail!();
 			}
 		}};
-	let mut doc = ~LinearMap::new();
+	let mut doc = ~HashMap::new();
 	doc.insert( ~"message",String( ~"하세요!" ) );
-	let mut args = ~LinearMap::new();
+	let mut args = ~HashMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-	let rval = match { let ( c, p ) = oneshot::init();
+	let rval = match { let ( p, c ) = oneshot();
 		fit_chan.send( DoFit( copy args, c ) );
 		recv_one( p )
 		} {
@@ -239,11 +240,11 @@ fn test_write_and_read() {
 			rval
 		}
 		FitSysErr( err ) => {
-			io::println( JahArgs::new( err ).to_str() );
+			println( JahArgs::new( err ).to_str() );
 			fail!();
 		}
 		FitErr( err ) => {
-			io::println( JahArgs::new( err ).to_str() );
+			println( JahArgs::new( err ).to_str() );
 			fail!();
 		}};
 	let jah = JahArgs::new( rval );
