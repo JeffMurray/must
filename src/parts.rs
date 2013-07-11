@@ -41,11 +41,7 @@ use std::task::{ spawn, yield };
 //	ParT: holds a shared channel to a "live" instance of a Par
 //	Pronounce it Part or Par Tee 
 
-struct ParT {
-	chan: SharedChan<ParInComm>,
-	specs_in: ~[~str],
-	specs_out: ~[~str]
-}
+type ParT = SharedChan<ParInComm>;
 
 struct ParTs;
 
@@ -63,10 +59,16 @@ enum ParTInAdminComm {
 	ParTsRelease( ChanOne<()> )
 }
 
+enum Fitty {
+	FileAppJSON( ~FileAppendJSON ),
+	ErrOutTerminal( ~ErrFit ),
+	NotFound
+}
+
 impl ParTs {
 
 	pub fn connect() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
-	
+
 		let ( user_port, user_chan ) = stream();
 		let ( admin_port, admin_chan ) = stream();	
 		do spawn {
@@ -79,9 +81,10 @@ impl ParTs {
 					let part: ParTInAdminComm = admin_port.recv();
 					match part {
 						AddParT( reg_key, result_chan ) => {
-							match ParTs::load_part( copy reg_key ) {
-								Ok( part ) => {
-									parts.insert( reg_key, part );
+							let val: Result<SharedChan<ParInComm>, ~Object>  = ParTs::load_part( copy reg_key );
+							match val {
+								Ok( par_chan ) => {
+									parts.insert( copy reg_key, par_chan );
 									result_chan.send( Ok( true ) );
 								}
 								Err( error ) => {					
@@ -91,17 +94,13 @@ impl ParTs {
 						},
 						ParTsRelease( ack_chan ) => {
 							loop {
-					            do parts.consume |key, part| {
-   									let chan = part.chan.clone();
+					            do parts.consume |key, chan| { 
 									let ( p, c ) = oneshot();
 									chan.send( ParCommEndChan( c ) );
 									recv_one( p );
-									std::io::println( ~"released " + copy key );
             					}
 								break_again = true;
-								std::io::println( "sending ack" );
 								ack_chan.send( () );
-								std::io::println( "sent ack" );
 								break;
 							}
 						}
@@ -113,10 +112,10 @@ impl ParTs {
 					let usr_req: ParTInComm = user_port.recv();
 					match usr_req {
 						GetParTChan( reg_key, par_chan_one ) => { 
-							let opt_part = parts.find( &reg_key );
-							match opt_part {
-								Some( part ) => {
-									ParTs::no_wait_reply( part ).send( par_chan_one );
+							let opt_chan = parts.find( &reg_key );
+							match opt_chan {
+								Some( chan ) => {
+									ParTs::no_wait_reply( chan.clone() ).send( par_chan_one );
 								}
 								None => {
 									par_chan_one.send( ParTErr( Bootstrap::mk_mon_err( ~[ Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"Q5jmEpjJ4yNzywjv", ~"parts.rs" ) ] ) ) );
@@ -127,16 +126,16 @@ impl ParTs {
 				}
 				if !recvd { yield(); }				
 			}
-			
+
 		}	
 		( user_chan, admin_chan )
 	}
 
-	priv fn no_wait_reply( part: &~ParT ) -> Chan<ChanOne<ParTOutComm>> {
+	priv fn no_wait_reply( par_chan: SharedChan<ParInComm> ) -> Chan<ChanOne<ParTOutComm>> {
 
 		// the last thing I want is for ParTs to get hung up waiting on a 
 		// send that does not get picked up, or that is slow to get picked up.
-		let par_chan = part.chan.clone();
+		//let par_chan = part.chan.clone();
 		let ( port, chan ) = stream();
 		do spawn {
 			let chan_one: ChanOne<ParTOutComm> = port.recv();
@@ -147,68 +146,54 @@ impl ParTs {
 		chan
 	}	
 
-	// I'm planning to make a document based fit registry after the indexing systems up and running
-	// for now they will get hard-coded
+	priv fn make_fit( reg_key: ~str ) -> Result<Chan<ParFitComm>, ~Object> {
 	
-	priv fn start_part<T: Parfitable+JahSpeced>( par: ~Par, fit: ~T ) -> Result<~ParT, ~Object> { //notice how Rust generics kick ass?
-	
+		match reg_key {
+			~"S68yWotrIh06IdE8" => {
+				let mut config = ~HashMap::new();
+				config.insert( ~"path", String(~"test.json").to_json() );
+				config.insert( ~"num", 1u.to_json() );
+				config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
+				let fit = ~FileAppendJSON{ file_args: config };
+				fit.connect()
+			}
+			~"Zbh4OJ4uE1R1Kkfr" => {
+				let fit = ~ErrFit{ settings: ~HashMap::new() };
+				fit.connect()
+			}
+			_ => {
+				Err( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"parts.rs", ~"Wpk72dvmISQYKvFN" ) )
+			}
+		}		
+	}
+	// The reg_key identifies a specific live instance of a fit.  The reason the fit_key is not used
+	// here is because having multiple instances of the same Fit can be handy.
+	priv fn load_part( reg_key: ~str ) -> Result<ParT, ~Object> {
+
 		let fit_chan = {
-			let rslt: Result<Chan<ParFitComm>, ~Object> = fit.connect();
-			match rslt {
-				Ok( fit_chan ) => {
-					fit_chan
+			match ParTs::make_fit( copy reg_key ) {
+				Ok( chan_parfit_comm ) => {
+					chan_parfit_comm
 				}
-				Err( obj ) => {
-					return Err( Bootstrap::mk_mon_err( ~[obj] ) );
+				Err( err ) => {
+					return Err( err );  // TODO add trace
 				}
 			}};
-		
+		let par = Par::new( 5u );
 		match par.connect(fit_chan) {
 			Ok( par_chan ) => {
-				Ok( ~ParT { chan: SharedChan::new( par_chan ), specs_in: copy fit.spec_keys_in(), specs_out: copy fit.spec_keys_out() } )
+				Ok( SharedChan::new( par_chan ) )
 			}
 			Err( err ) => {
 				Err( Bootstrap::mk_mon_err( ~[err] ) )
 			}
-		}		
-	}
-	
-	// The reg_key identifies a specific live instance of a fit.  The reason the fit_key is not used
-	// here is because having multiple instances of the same Fit can be handy.
-	priv fn load_part( reg_key: ~str ) -> Result<~ParT, ~Object> {
-	
-		match reg_key {
-			~"S68yWotrIh06IdE8" => {
-				//	Appends a document to a file along with >> TODO MD5 <<  and file slice information
-				//	Takes spec uHSQ7daYUXqUUPSo
-				//	Returns Ok spec 5W6emlWjT77xoGOH Err spec VWnPY4CStrXkk4SU
-				
-				let fit = ~FileAppendJSON{ file_args: {
-						let mut config = ~HashMap::new();
-						config.insert( ~"path", String(~"test.json").to_json() );
-						config.insert( ~"num", 1u.to_json() );
-						config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
-						config 
-					}};	
-				ParTs::start_part( Par::new( 20u ), fit )
-			}
-			~"Zbh4OJ4uE1R1Kkfr" => {
-				// Writes errors to the terminal window formated to a pretty string
-				// Takes any Object
-				// Returns spec er5OWig71VG9oNjK (the empty spec) 
-
-				ParTs::start_part( Par::new( 20u ), ~ErrFit{ settings: ~HashMap::new() } )
-			}			
-			_ => {
-				Err( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"9ZwGwLZSSwByYfs7", ~"parts.rs" ) )
-			}
-		}
+		}						
 	}	
 }
 
 #[test]
 fn various_parts() {
-	
+
 	let ( user_chan, admin_chan ) = ParTs::connect();
 	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) );
@@ -259,6 +244,5 @@ fn various_parts() {
 	std::io::println( ~"ack receiving" );
 	recv_one( p );
 	std::io::println( ~"ack recieved" );
-	
-}	
 
+}

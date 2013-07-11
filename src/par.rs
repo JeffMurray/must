@@ -132,6 +132,7 @@ impl Par {
 	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~Object> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
+		println( ~"cap = " + self.spawn_cap.to_str() ); 
 		let ( good_by_port, good_by_chan ) = stream();
 		let fit_ch = SharedChan::new( fit_chan );
 		let good_by_chan = SharedChan::new( good_by_chan );
@@ -139,6 +140,7 @@ impl Par {
 			let mut current_spawns = 0u;
 			loop {
 				let to_do_list = Par::to_do_list( in_port.peek(), good_by_port.peek(), current_spawns, spawn_cap );
+				let mut break_again = false;
 				for to_do_list.iter().advance | to_do_item | {
 					match *to_do_item {
 						Yield => {
@@ -154,7 +156,7 @@ impl Par {
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
-									println(~"spawns = " + current_spawns.to_str() );
+									println(~"spawns = " + current_spawns.to_str() + ~" cap = " + spawn_cap.to_str());
 									let spawn_chan = Par::go();
 									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
@@ -162,17 +164,19 @@ impl Par {
 									while current_spawns > 0 {
 										good_by_port.recv(); // spawn is saying good-by
 										current_spawns -= 1;	
-										println(~"spawns = " + current_spawns.to_str() );	
+										println(~"spawns = " + current_spawns.to_str() + ~" cap = " + spawn_cap.to_str());	
 									}
-									let fc = fit_ch.clone();
-									fc.send( ParFitCommEndChan );
+
+									fit_ch.send( ParFitCommEndChan );
 									ack_chan.send( () );
+									break_again = true;
 									break; 
 								}
 							}					
 						}				
 					}
 				}
+				if break_again { break; }
 			}
 		}
 		Ok( true )

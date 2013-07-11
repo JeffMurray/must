@@ -89,7 +89,6 @@ impl Bootstrap {
 		err.insert( ~"line_key", String( line_key ).to_json() );
 		err
  	}
-
  	
  	pub fn logic_error(rule_key: ~str, arg_name: ~str, line_key: ~str, file_name: ~str) -> ~Object { 
 	 
@@ -105,6 +104,7 @@ impl Bootstrap {
 		err.insert( ~"file_name", String( file_name ) );
 		err
  	} 	 		
+ 	
  	//	When code identifies an error it adds information about the calling fn
 
 	pub fn reply_error_trace_info(file_name: ~str, line_key: ~str) -> ~Object { 

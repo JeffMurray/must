@@ -259,7 +259,7 @@ fn add_document_strand() {
 
 	let must_bank_in = MustBank::connect();
 	let must_bank_in = SharedChan::new( must_bank_in );
-	let max = 2i;
+	let max = 100i;
 	let mut i = 1i;
 	std::io::println( "Inserting " + max.to_str() + " documents." );
 	while i <= max {
