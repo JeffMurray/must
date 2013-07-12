@@ -59,12 +59,6 @@ enum ParTInAdminComm {
 	ParTsRelease( ChanOne<()> )
 }
 
-enum Fitty {
-	FileAppJSON( ~FileAppendJSON ),
-	ErrOutTerminal( ~ErrFit ),
-	NotFound
-}
-
 impl ParTs {
 
 	pub fn connect() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
@@ -179,7 +173,7 @@ impl ParTs {
 					return Err( err );  // TODO add trace
 				}
 			}};
-		let par = Par::new( 5u );
+		let par = Par::new( 20u );
 		match par.connect(fit_chan) {
 			Ok( par_chan ) => {
 				Ok( SharedChan::new( par_chan ) )
