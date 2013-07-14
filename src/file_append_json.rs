@@ -24,9 +24,9 @@ use std::comm::{ stream, Port, Chan, oneshot, recv_one };
 use extra::json::{ Object, ToJson, PrettyEncoder, String, List };//,Number, Json 
 use bootstrap::{ Bootstrap };
 use extra::serialize::Encodable;
-use std::io::{ println, Create, Append };
+use std::io::{ Create, Append };
 use std::hashmap::HashMap;
-use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr}; //, FitComm, FitTryFail 
+use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr, FitArgs, FitErrs}; //, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
 use must::{ Must };
@@ -46,7 +46,7 @@ impl Parfitable for FileAppendJSON {
 		~FileAppendJSON { file_args: settings }
 	}
 	
-	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
+	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
 		let ( in_port, in_chan ) = stream();
 		match self.go( in_port ) {
@@ -80,7 +80,7 @@ impl FileAppendJSON {
 	
 	//Implements a sequential writer for single Must controlled file
 
-	priv fn go ( &self, in_port: Port<ParFitComm> ) -> Result<bool, ~Object> {
+	priv fn go ( &self, in_port: Port<ParFitComm> ) -> Result<bool, ~FitErrs> {
 
     	//I do not understand the pro's and con's
     	//related to opening a new writer for every append in Rust.
@@ -92,29 +92,29 @@ impl FileAppendJSON {
     		Ok( ( file_path, file_num ) ) => {
     			( file_path, file_num )
     		}
-    		Err( fit_sys_err ) => { 
-    			return Err( fit_sys_err );
+    		Err( fit_sys_errs ) => { 
+    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
     		}
     		}};
-    		println( file_path );
+    	println( file_path );
     	let path = Path( file_path );
     	let spec = JahSpec::new( Bootstrap::find_spec( ~"uHSQ7daYUXqUUPSo" ) );
 		if spec.spec_key() !=  ~"uHSQ7daYUXqUUPSo" {
-			return Err( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) ;
+			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) );
 		}				
 		do spawn {	
 			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
 			let file_reader_rslt = std::io::file_reader( &path );
 			if append_writer_rslt.is_err() {
-				match in_port.recv() {
+				match in_port.recv() {  //send the error to the first thing that communicates
 		  			DoFit( args, home_chan ) => {
-		  				home_chan.send( FitSysErr( Bootstrap::fit_sys_err( args, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"aP5FFu7dV0xNr4MZ" ) ) );			  				
+		  				home_chan.send( FitSysErr( FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"aP5FFu7dV0xNr4MZ" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else if file_reader_rslt.is_err() {
 				match in_port.recv() {
 		  			DoFit( args, home_chan ) => {
-		  				home_chan.send( FitSysErr( Bootstrap::fit_sys_err( args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"mKdumoT12u9UsAQg" ) ) );			  				
+		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"mKdumoT12u9UsAQg" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else {
@@ -130,7 +130,7 @@ impl FileAppendJSON {
 							break;
 						},
 			  			DoFit( args, home_chan ) => {
-							match spec.check_args( JahArgs::new( ~copy *args ) ) {
+							match spec.check_args( JahArgs::new( copy args.doc ) ) {
 								Ok( _ ) => { 
 									
 									//get current the ending position of the file
@@ -139,7 +139,7 @@ impl FileAppendJSON {
 									
 									//write the doc with all of the args
 									let mut encoder = PrettyEncoder(append_writer);
-				        			args.encode(&mut encoder);						
+				        			args.doc.encode(&mut encoder);						
 									append_writer.flush();
 									
 									//get the new ending position of the file
@@ -160,10 +160,10 @@ impl FileAppendJSON {
 									let mut r_args = ~HashMap::new();
 									r_args.insert( ~"slice", slice.to_json() );
 									r_args.insert( ~"spec_key", (~"WZody857ygg3YF1x").to_json() );
-									home_chan.send( FitOk( copy r_args ) );
+									home_chan.send( FitOk( ~FitArgs::from_doc( r_args ) ) );
 								},
 								Err( errs ) => {
-									home_chan.send( FitErr( Bootstrap::mk_mon_err( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"hiLXpCZ3nbya2Oea" )] + errs ) ) );
+									home_chan.send( FitErr( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"hiLXpCZ3nbya2Oea" )] + errs ) ) );
 								}
 							}
 			  			}
@@ -186,14 +186,14 @@ impl FileAppendJSON {
 		spec
 	}
 	
-	fn get_startup_args( &self ) -> Result<( ~str, uint ), ~Object > {
+	fn get_startup_args( &self ) -> Result<( ~str, uint ), ~[~Object] > {
 	
 		let args = JahArgs::new( copy self.file_args );
 		let spec = JahSpec::new( self.arg_out() );
 		match spec.check_args( copy args ) {
 			Ok( _ ) => { }
 			Err( errs ) => {
-				return Err( Bootstrap::mk_mon_err( ~[Bootstrap::reply_error_trace_info(~"file_append_json.rs", ~"rx9vMuM19wlGvMm2" )]  + errs ) );
+				return Err( ~[Bootstrap::reply_error_trace_info(~"file_append_json.rs", ~"rx9vMuM19wlGvMm2" )] + errs );
 			}
 		}
 		// Since args has passed a spec check, I am pretty confident using .get()		
@@ -218,8 +218,8 @@ fn test_write_and_read() {
 			Ok( chan ) => {
 				chan
 			}
-			Err( obj ) => {
-				println( JahArgs::new( obj ).to_str() );
+			Err( fit_errs ) => {
+				println( fit_errs.to_str() );
 				fail!();
 			}
 		}};
@@ -232,22 +232,22 @@ fn test_write_and_read() {
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
 	let rval = match { let ( p, c ) = oneshot();
-		fit_chan.send( DoFit( copy args, c ) );
+		fit_chan.send( DoFit( ~FitArgs::from_doc( copy args ), c ) );
 		recv_one( p )
 		} {
 		FitOk( rval ) => {
 			fit_chan.send ( ParFitCommEndChan );
 			rval
 		}
-		FitSysErr( err ) => {
-			println( JahArgs::new( err ).to_str() );
+		FitSysErr( fit_errs ) => {
+			println( fit_errs.to_str() );
 			fail!();
 		}
-		FitErr( err ) => {
-			println( JahArgs::new( err ).to_str() );
+		FitErr( fit_errs ) => {
+			println( fit_errs.to_str() );
 			fail!();
 		}};
-	let jah = JahArgs::new( rval );
+	let jah = JahArgs::new( rval.doc );
 	assert!( JahSpec::new( Bootstrap::find_spec( ~"ma2snwuG8VPGxY8z" ) ).check_args( copy jah ).is_ok() );
 	let slice = JahArgs::new( jah.get_map( ~"slice" ).get() );
 	let len: uint = slice.get_float( ~"len" ).get().to_uint();

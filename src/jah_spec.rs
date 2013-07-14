@@ -98,7 +98,7 @@ impl JahSpec {
 		match self.check_spec() {
 			Ok( _ ) => {}
 			Err( errs ) => {
-				return Err( errs + [ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"s0lFEONAYynSawUd" ) ] ) 
+				return Err( ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"s0lFEONAYynSawUd" ) ] + errs ) 
 			}
 		}
 		match self.get_allowed() {
@@ -110,17 +110,17 @@ impl JahSpec {
 								Ok( true )
 							}
 							Err( errs ) => {
-								Err( errs + [ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"E4S4zOP8QKA6bm62" ) ] ) 
+								Err( ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"E4S4zOP8QKA6bm62" ) ]  + errs ) 
 							}
 						}
 					}
 					Err( errs ) => {
-						Err( errs + [ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"CvSaRhKZYrgqIl2q" ) ] ) 
+						Err( ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"CvSaRhKZYrgqIl2q" ) ]  + errs ) 
 					}
 				}
     		}
     		Err( errs ) => {
-    			Err( errs + [ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"kmM0kE9Isb61If3j" ) ] ) 
+    			Err( ~[ Bootstrap::reply_error_trace_info( ~"jah_spec.rs", ~"kmM0kE9Isb61If3j" ) ] + errs   ) 
 			}
 		}
 	}
@@ -274,7 +274,7 @@ impl JahSpec {
 		}
 	}
 	
-	pub fn allowed_keys( &self ) -> Result<~[~str], ~Object> {
+	pub fn allowed_keys( &self ) -> Result<~[~str], ~[~Object]> {
 		
 		match self.get_allowed() {
 			Ok( allowed ) => {
@@ -282,7 +282,7 @@ impl JahSpec {
 				Ok( jah.arg_keys() )
 			}
 			Err( errs ) => {
-				Err( Bootstrap::mk_mon_err( errs ) )
+				Err( errs )
 			}
 		}
 	}
@@ -356,7 +356,7 @@ impl JahSpec {
 						~[] //arg_key passed, there is nothing to do
 					}, 
 					Err(err) => {
-						err + [ Bootstrap::reply_error_trace_info(~"jah_spec.rs", ~"Kerw1ihlUtNhYS5w") ]
+						~[ Bootstrap::reply_error_trace_info(~"jah_spec.rs", ~"Kerw1ihlUtNhYS5w") ] + err 
 					}
 				}
 			}
@@ -524,15 +524,19 @@ pub fn test_missing_arg() {
 		Ok( _ ) => {
 			fail!();
 		}
-		Err( err ) => {
-			match JahArgs::new( copy err[0] ).get_str(~"rule_key") {
-				Ok( val ) => {
-					assert!( val == Bootstrap::arg_rule_key_arg_must_exist() );
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
 				}
-				Err( _ ) => {
-					fail!();
-				}
-			} 
+			}
+			fail!();			
 		}
 	}
 }
@@ -553,9 +557,17 @@ pub fn test_extra_arg() {
 			fail!();
 		}
 		Err( errs ) => {
-			let first_err = JahArgs::new( copy errs[0] );
-			assert!( first_err.get_str( ~"rule_key" ).is_ok() );
-		}
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( _ ) => {
+	 					return;
+	 				}
+	 				Err( _ ) => {}
+				}
+			}
+			fail!();			
+		}	
 	}
 }
 
@@ -590,40 +602,48 @@ pub fn test_number_rules() {
  	//make sure the required arg is required
  	arg_map.remove( &~"num_required_key" );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			let mut found = false;
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						found = true;
+	 						break;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			if !found { fail!(); }		
+		}
 	}
 	
 	//check for wrong type
  	arg_map.remove( &~"str_not_required_key" );
  	arg_map.insert(~"str_not_required_key", true.to_json() );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_arg_key_arg_must_be_number() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_arg_key_arg_must_be_number() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			fail!();			
+		}
 	}		
 }	
 
@@ -656,40 +676,48 @@ pub fn test_string_rules() {
  	//make sure the required arg is required and returns the right error
  	arg_map.remove( &~"str_required_key" );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			let mut found = false; 
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						found = true;
+	 						break;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			if !found { fail!(); }		
+		} 	
 	}
 	
 	//check for wrong type and correct error
  	arg_map.remove( &~"str_not_required_key" );
  	arg_map.insert(~"str_not_required_key", true.to_json() );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_key_must_be_string() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_key_must_be_string() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			fail!();			
+		} 	 	
 	}		
 }	
 
@@ -722,40 +750,47 @@ pub fn test_list_rules() {
  	//make sure the required arg is required and returns the right error
  	arg_map.remove( &~"list_required_key" );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			let mut found = false;
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						found = true;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			if !found { fail!() };			
+		} 	  	
 	}
 	
 	//check for wrong type and correct error
  	arg_map.remove( &~"list_not_required_key" );
  	arg_map.insert(~"list_not_required_key", true.to_json() );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_be_list() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_be_list() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			fail!();			
+		} 	  	
 	}		
 }
 
@@ -788,40 +823,47 @@ pub fn test_object_rules() {
  	//make sure the required arg is required and returns the right error
  	arg_map.remove( &~"obj_required_key" );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			let mut found = false;
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						found = true;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			if !found { fail!(); }		
+		} 	  	 	
 	}
 	
 	//check for wrong type and correct error
  	arg_map.remove( &~"obj_not_required_key" );
  	arg_map.insert(~"obj_not_required_key", true.to_json() );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_be_object() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_be_object() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			fail!();			
+		} 	
 	}		
 }
 
@@ -864,41 +906,49 @@ pub fn test_bool_rules() {
  	//make sure the required arg is required and returns the right error
  	arg_map.remove( &~"bool_required_key" );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			let mut found = false;
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						found = true;
+	 						break;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
+			if !found { fail!(); }			
+		}
 	}
 	
 	//check for wrong type and correct error
  	arg_map.remove( &~"bool_not_required_key" );
  	arg_map.insert(~"bool_not_required_key", 1f.to_json() );
  	match spec.check_args( JahArgs::new( copy arg_map ) ) {
- 		Ok( _ ) => {
- 			fail!();
- 		}
- 		Err( errs ) => {
- 			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_be_bool() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
+		Ok( _ ) => {
+			fail!();
+		}
+		Err( errs ) => {
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_be_bool() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
 			}
- 		}
-	}		
+			fail!();			
+		}
+	}
 }
 
 #[test]
@@ -911,15 +961,18 @@ pub fn zero_condition_spec() {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = JahArgs::new( copy errs[0] );;
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
-			}			
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
+			}
+			fail!();			
 		}
 	}
 }
@@ -934,15 +987,18 @@ pub fn zero_condition_args() {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = JahArgs::new( copy errs[0] );;
- 			match ArgRules::get_rule_key( err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
-			}			
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
+			}
+			fail!();			
 		}
 	}
 }
@@ -970,19 +1026,21 @@ pub fn zero_length_list_allowed_args() {
 	let one_arg = JahArgs::new( map2 );
 	match zero_list_allowed_spec.check_args( one_arg ) {
 		Ok( _ ) => {
-			fail!(); //no args can be supplied if the allowed
+			fail!();
 		}
 		Err( errs ) => {
-			let err = JahArgs::new( copy errs[0] );;
- 			match ArgRules::get_rule_key( copy err ) {
- 				Ok( key ) => {
-					println( err.to_str() );
- 					assert!( key == Bootstrap::arg_rule_key_arg_is_not_allowed() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
-			}			
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_is_not_allowed() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
+			}
+			fail!();			
 		}
 	}
 }
@@ -999,15 +1057,18 @@ pub fn spec_missing_must_key() {
 			fail!();
 		}
 		Err( errs ) => {
-			let err = JahArgs::new( copy errs[0] );
- 			match ArgRules::get_rule_key( copy err ) {
- 				Ok( key ) => {
- 					assert!( key == Bootstrap::arg_rule_key_arg_must_exist() );
- 				}
- 				Err( _ ) => {
- 					fail!();
- 				}
-			}			
+			for errs.iter().advance | err | {
+				let jah = JahArgs::new( copy *err );
+	 			match ArgRules::get_rule_key( jah ) {
+	 				Ok( key ) => {
+	 					if key == Bootstrap::arg_rule_key_arg_must_exist() {
+	 						return;
+	 					}
+	 				}
+	 				Err( _ ) => {}
+				}
+			}
+			fail!();			
 		}
 	}
 }

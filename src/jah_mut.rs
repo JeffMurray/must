@@ -22,7 +22,9 @@
 extern mod std;
 extern mod extra;
 extern mod jah_args;
+extern mod fit;
 use jah_args::{ JahArgs };
+use fit::{ FitArgs };
 use extra::json ::{ Json, ToJson, String, Number, Boolean };
 use std::hashmap::HashMap;
 use std::task::{spawn, yield};
@@ -34,13 +36,14 @@ enum JahMutReq {
 	GetStr( ~str, ChanOne<Option<~str>>  ),
 	GetFloat( ~str, ChanOne<Option<float>> ),
 	GetBool( ~str, ChanOne<Option<bool>> ),	
+	GetAttach( ~str, ChanOne<Option<~[u8]>> ),		
 	GetMapCopy( ChanOne<Option< ~HashMap<~str, Json>>> )
 }
 
 enum JahMutAdmin {
 	InsertOrUpdate( ~str, Json ),
 	LoadMap( ~HashMap<~str, Json> ),
-	MergeArgs( ~HashMap<~str, Json> ),
+	MergeArgs( ~FitArgs ),
 	Remove( ~str ),
 	Release
 }
@@ -67,6 +70,7 @@ impl JahMut {
 	
 		do spawn {
 			let mut map = ~HashMap::new();
+			let mut attached = ~HashMap::new();
 			loop {
 				let to_do = {
 					let mut tds = ~[];
@@ -99,14 +103,22 @@ impl JahMut {
 								LoadMap( new_map ) => {
 									map = new_map;
 								}
-								MergeArgs( arg_map ) => {
-									let jah = JahArgs::new( arg_map );
+								MergeArgs( args ) => {
+									let jah = JahArgs::new( copy args.doc );
 									let keys = jah.arg_keys();
 									for keys.iter().advance | key | {
 										if map.contains_key( key ) {
 											map.remove( key );
 										}
 										map.insert( copy *key, jah.get_json_val( copy *key ).to_json() );	
+									}
+									match jah.get_str( ~"attach" ) {
+										Ok( atch_name ) => {
+											if attached.contains_key( &atch_name ) {
+												attached.remove( &atch_name );
+											}
+											attached.insert( copy atch_name, args.attach );												
+										} _ =>{}
 									}
 								}
 								Release	=> {
@@ -121,6 +133,16 @@ impl JahMut {
 									match map.find( &key ) {
 										Some( json_value ) => {
 											chan.send( Some( copy *json_value ) );
+										}
+										None => {
+											chan.send( None );
+										}
+									}
+								}
+								GetAttach( key, chan ) => {
+									match attached.find( &key ) {
+										Some( attach ) => {
+											chan.send( Some( copy *attach ) );
 										}
 										None => {
 											chan.send( None );
@@ -308,6 +330,37 @@ fn test_remove(){
 		}, _ => fail!()
 	}	
 	admin_chan.send( Release );
+}
+
+#[test]
+fn test_get_attach(){
+
+	let ( user_chan, admin_chan ) = JahMut::connect();
+	let mut doc = ~HashMap::new();
+	doc.insert( ~"attach", String( ~"prize" ).to_json() );
+	admin_chan.send( MergeArgs( ~FitArgs{ doc: doc, attach: ~[1,2,3,4] } ) );
+	
+	// check Some
+	match { let ( p, c ) = oneshot();
+		user_chan.send( GetAttach( ~"prize", c ) );
+		recv_one( p )
+	} {
+		Some( val ) => {
+			assert!( val == ~[1,2,3,4] );
+		}, _ => fail!()
+	}
+	
+	// check None
+	match { let ( p, c ) = oneshot();
+		user_chan.send( GetAttach( ~"attach", c ) );
+		recv_one( p )
+	} {
+		Some( val ) => {
+			fail!();
+		}, _ => {}
+	}	
+
+	admin_chan.send( Release );	
 }
 
 #[test]

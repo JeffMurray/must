@@ -26,7 +26,7 @@ extern mod parts;
 use jah_args::{ JahArgs };
 use jah_spec::{ JahSpec };
 use par::{ FitOutcome, ParTrans };
-use fit::{ FitOk, FitErr, FitSysErr };
+use fit::{ FitOk, FitErr, FitSysErr, FitErrs, FitArgs };
 use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr, ParTsRelease };
 use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
@@ -40,7 +40,7 @@ use std::task::{ spawn, yield };
 struct MustBank;
 
 enum MustBankInComm {
-	MBTranscript( ~Object, ChanOne<Result< ~Object, ~Object >> ), // args, Result( trans_key info ) or Err info 
+	MBTranscript( ~Object, ChanOne<Result< ~Object, ~FitErrs >> ), // args, Result( trans_key info ) or Err info 
 	MBRelease( ChanOne<()> ) //( ack_chan )
 }
 
@@ -48,64 +48,78 @@ struct Transcriptor;
 
 impl MustBank {
 	
-	pub fn connect() -> Chan<MustBankInComm> {
+	pub fn connect() -> Result<Chan<MustBankInComm>, ~FitErrs> {
 	
 		let (port, chan ) = stream();
 		MustBank::loop_in_spawn( port );
-		chan
+		Ok( chan )
 	}
 	
 	priv fn loop_in_spawn( port: Port< MustBankInComm > ) {
 	
 		do spawn {
-			let ( user_parts_chan, admin_parts_chan ) = MustBank::load_parts();  //leaving the warning to remind me to tidy this up
-			let user_parts_chan = SharedChan::new( user_parts_chan );
-			let ( goodby_port, goodby_chan ) = stream();
-			let goodby_chan = SharedChan::new( goodby_chan );
-			let mut t_count = 0u;
-			loop {
-				let ( recv_trans, recv_goodby ) = {
-					if t_count == 0u {
-						( true, false )
-					} else {
-						( port.peek(), goodby_port.peek() )
-					}};
-				
-				if recv_trans {
-					match port.recv() {
-						MBTranscript( args, chan_one ) => {
-							t_count += 1;
-							println( ~"t_count = " + t_count.to_str() );
-							Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
-						}
-						MBRelease( ack_chan ) => {
-							while t_count > 0 { //TODO: put a timeout here
-								goodby_port.recv();
-								t_count -= 1;
-								println( ~"t_count = " + t_count.to_str() );
+			match MustBank::load_parts() {  //leaving the warning to remind me to tidy this up
+				Ok(( user_parts_chan, admin_parts_chan )) => {
+					let user_parts_chan = SharedChan::new( user_parts_chan );
+					let ( goodby_port, goodby_chan ) = stream();
+					let goodby_chan = SharedChan::new( goodby_chan );
+					let mut t_count = 0u;
+					loop {
+						let ( recv_trans, recv_goodby ) = {
+							if t_count == 0u {
+								( true, false )
+							} else {
+								( port.peek(), goodby_port.peek() )
+							}};
+						
+						if recv_trans {
+							match port.recv() {
+								MBTranscript( args, chan_one ) => {
+									t_count += 1;
+									println( ~"t_count = " + t_count.to_str() );
+									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
+								}
+								MBRelease( ack_chan ) => {
+									while t_count > 0 { //TODO: put a timeout here
+										goodby_port.recv();
+										t_count -= 1;
+										println( ~"t_count = " + t_count.to_str() );
+									}
+									let ( p, c ) = oneshot();
+									admin_parts_chan.send( ParTsRelease( c ) );
+									recv_one( p );
+									ack_chan.send(());
+									break;
+								}
 							}
-							let ( p, c ) = oneshot();
-							admin_parts_chan.send( ParTsRelease( c ) );
-							recv_one( p );
-							ack_chan.send(());
-							break;
 						}
-					}
+						if recv_goodby {
+							goodby_port.recv();
+							t_count -= 1;
+						}
+						if !( recv_trans || recv_goodby ) {
+							yield();
+						}
+					}					
 				}
-				if recv_goodby {
-					goodby_port.recv();
-					t_count -= 1;
+				Err( errs ) => {
+					fail!(); //yuck here for now :( I'm guessing this is rare
 				}
-				if !( recv_trans || recv_goodby ) {
-					yield();
-				}
-			}
+			}			
 		}		
 	}
 
-	priv fn load_parts() -> ( Chan<ParTInComm>, Chan<ParTInAdminComm> ) {
+	priv fn load_parts() -> Result<( Chan<ParTInComm>, Chan<ParTInAdminComm> ), ~FitErrs> {
 	
-		let ( user_chan, admin_chan ) = ParTs::connect();
+		let ( user_chan, admin_chan ) = {
+			match ParTs::connect() {
+				Ok(( user_chan, admin_chan )) => {
+					( user_chan, admin_chan )
+				}
+				Err( err ) => {
+					return Err( err.prepend_err( Bootstrap::reply_error_trace_info(~"must_bank.rs", ~"ipHe17fctVPegreA") ) );
+				}
+			}};
 		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) ); // FileAppendJSON
 				recv_one( p )
@@ -121,19 +135,19 @@ impl MustBank {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
 		}
-		( user_chan, admin_chan )
+		Ok(( user_chan, admin_chan ))
 	}
 }
 
 impl Transcriptor {
 
-	fn connect( kickoff_strand_key: ~str ) -> Chan<((~Object, ChanOne<Result< ~Object, ~Object >>, SharedChan<ParTInComm>, SharedChan<int>))> {
+	fn connect( kickoff_strand_key: ~str ) -> Chan<((~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>))> {
 	
 		let ( start_port, start_chan ) = stream();
 		
 		do spawn {
 			let kickoff_strand_key = copy kickoff_strand_key;	
-			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~Object >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
+			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
 			let ( arg_bank_user_chan, arg_bank_admin_chan ) = JahMut::connect();  //  <-- the arg bank
@@ -157,7 +171,7 @@ impl Transcriptor {
 				let args = { 
 					match Transcriptor::speced_arg_excerpt( Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
 						Ok( args ) => { args }
-						Err( err ) => { std::io::println( "speced_arg_excerpt" ); std::io::println( extra::json::to_pretty_str(&(err.to_json()))); break; }  //Reporting this error will require the indexes be up and running
+						Err( err ) => { std::io::println( "speced_arg_excerpt error" ); break; }  //Reporting this error will require the indexes be up and running
 					}};																						//Transcribing this can get tied in with the rest of the reporting
 				// get the Par chan and send args
 				let fo: FitOutcome = {
@@ -166,25 +180,25 @@ impl Transcriptor {
 						recv_one( p )
 						} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 								let ( p2, c2 ) = oneshot();
-								part_chan.send( ParTrans( copy args , c2 ) ); // ChanOne<ParTOutComm>
+								part_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c2 ) ); // ChanOne<ParTOutComm>
 								recv_one( p2 )
 							} 
-							ParTErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); break; }
+							ParTErr( err ) => { std::io::println( err.to_str() ); break; }
 					}};
 				// Record the fit performance once the indexing system is up and running
 				// update the arg_bank
 				
 				match copy fo.outcome {
 					FitOk( rval ) => {
-						arg_bank_admin_chan.send( MergeArgs( copy rval ) );
+						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( rval.doc ) ) );
 						rib_chan.send( NextOk );
 					}
 					FitErr( rval ) => {
-						arg_bank_admin_chan.send( MergeArgs( copy rval ) );
+						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( Bootstrap::err_pack( rval.errs ) ) ) );
 						rib_chan.send( NextErr );
 					}
 					FitSysErr( err ) => {
-						std::io::println( "dgfhjk" + JahArgs::new( err ).to_str() );
+						println( err.to_str() );
 						break;
 					}
 				}
@@ -215,14 +229,15 @@ impl Transcriptor {
 	//  adherence to the expected spec. If everything passes, Ok( args ) is returned, 
 	//  otherwise descriptive error messages are returned, according to spec ;).
 	
-	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~Object, ~Object> {
+	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~Object, ~[~Object]> {
 		
 		let jah_spec = JahSpec::new( spec );
 		let mut rval = ~HashMap::new();
-		let keys = { match jah_spec.allowed_keys() {
-			Ok( keys ) => { keys } 
-			Err( err ) => { return Err( err ); }
-			}};
+		let keys = { 
+			match jah_spec.allowed_keys() {
+				Ok( keys ) => { keys } 
+				Err( err ) => { return Err( err ); }
+				}};
 		for keys.iter().advance | key | {
 				match {let ( p, c ) = oneshot();
 				arg_bank_chan.send( GetJson( copy *key, c ) );
@@ -239,7 +254,7 @@ impl Transcriptor {
 				Ok( rval ) // we have validated args, ready to roll
 			}
 			Err( errs ) => {
-				Err( Bootstrap::mk_mon_err( errs ) ) 
+				Err( errs ) 
 			}
 		}
 	}
@@ -257,7 +272,15 @@ impl Transcriptor {
 #[test]
 fn add_document_strand() {
 
-	let must_bank_in = MustBank::connect();
+	let must_bank_in = {
+		match MustBank::connect() {
+			Ok( mbi ) => {
+				mbi
+			}
+			Err( _ ) => {
+				fail!();
+			}
+		}};
 	let must_bank_in = SharedChan::new( must_bank_in );
 	let max = 1000i;
 	let mut i = 1i;
@@ -280,7 +303,7 @@ fn add_document_strand() {
 				Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
 					//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 				}
-				Err( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!(); }
+				Err( err ) => { std::io::println( err.to_str() ); fail!(); }
 			}
 		}
 		i += 1;
@@ -299,8 +322,9 @@ fn add_document_strand() {
 		Ok( t_key ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
 			std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 		}
-		Err( err ) => {std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!(); }
+		Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 	}
+	yield();yield();yield();yield();yield();
 	let ( p, c ) = oneshot();
     must_bank_in.clone().send( MBRelease( c ) );
 	recv_one( p );  // wait for the ack

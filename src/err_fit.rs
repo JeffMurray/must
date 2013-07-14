@@ -21,7 +21,7 @@ use std::comm::{ stream, Port, Chan };  //, SharedChan
 use extra::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
 use std::io::println;
 use std::hashmap::HashMap;
-use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk};  //, FitSysErr, FitErr, FitComm, FitTryFail 
+use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitArgs, FitErrs}; 
 use jah_spec::{ JahSpeced }; 
 use jah_args::{ JahArgs };
 
@@ -38,7 +38,7 @@ impl Parfitable for ErrFit {
 		~ErrFit { settings: settings }
 	}
 	
-	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~Object> {
+	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
 		let ( in_port, in_chan ) = stream();
 		self.go( in_port );
@@ -77,10 +77,10 @@ impl ErrFit {
 			loop {
 				match par_port.recv() {
 		  			DoFit( args, home_chan ) => {
-		  				println( JahArgs::new( args ).to_str() );
+		  				println( JahArgs::new( args.doc ).to_str() );
 		  				let mut r_args = ~HashMap::new();
 		  				r_args.insert(  ~"spec_key", String(~"er5OWig71VG9oNjK").to_json() );
-		 				home_chan.send( FitOk( copy r_args ) );
+		 				home_chan.send( FitOk( ~FitArgs::from_doc( copy r_args ) ) );
 		  			}
 					ParFitCommEndChan => {
 						break;

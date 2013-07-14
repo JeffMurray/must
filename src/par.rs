@@ -7,8 +7,7 @@
 //	except according to those terms.
 
 //	rustc --lib par.rs -L .
-//	rustc par.rs --test -o par-tests -L .
-//	./par-tests
+//	par.rs is tested in parts.rs 
 
 #[link(name = "par", vers = "1.0")];
 
@@ -16,7 +15,7 @@ extern mod std;
 extern mod extra;
 extern mod fit;
 use extra::time::Timespec;
-use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm }; // FitTryFail, FitSysErr, FitErr, FitOk, 
+use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm, FitArgs, FitErrs }; // FitTryFail, FitSysErr, FitErr, FitOk, 
 use extra::json::{ Object };
 use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use std::task::{ spawn, yield };
@@ -52,12 +51,12 @@ struct Par {
 }
 
 enum ParInComm {
-	ParTrans( ~Object, ChanOne<FitOutcome> ), // ( t_key, args )
+	ParTrans( ~FitArgs, ChanOne<FitOutcome> ), // ( t_key, args )
 	ParCommEndChan( ChanOne<()> )
 }
 
 enum SpawnComm {
-	SpawnDoFit( ~Object, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<int>, uint ) // args, fit_chan, home_chan, good_by_chan, spawns
+	SpawnDoFit( ~FitArgs, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<int>, uint ) // args, fit_chan, home_chan, good_by_chan, spawns
 }
 
 struct FitOutcome {
@@ -83,7 +82,7 @@ impl Par {
 		}
 	}
 	
-	pub fn connect( &self, fit_chan: Chan<ParFitComm> ) -> Result<Chan<ParInComm>, ~Object> {
+	pub fn connect( &self, fit_chan: Chan<ParFitComm> ) -> Result<Chan<ParInComm>, ~FitErrs> {
 	
 		let (in_port, in_chan) = stream();
 		match self.spawn_and_run( in_port, fit_chan ) {
@@ -96,6 +95,7 @@ impl Par {
 		}
 	}
 	
+	//This is the spawn that actually communicates with the fit
 	priv fn go() -> Chan<SpawnComm> {
 	
 		let (in_port, in_chan): ( Port<SpawnComm>, Chan<SpawnComm>) = stream();
@@ -110,7 +110,7 @@ impl Par {
 					let mut sec_diff = end.sec - start.sec;
 					let mut nsec_diff = end.nsec - start.nsec;
 					if sec_diff > 0 { //I could not find a native timespan function at the time I did this
-						if nsec_diff  < 0 {
+						if nsec_diff  < 0 { //First time I have done this math, hope it is right :)
 							nsec_diff = 1000000000 + nsec_diff;
 							sec_diff -= 1;
 						}
@@ -129,7 +129,7 @@ impl Par {
 		return in_chan; 
 	}
 	
-	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~Object> {
+	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~FitErrs> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
 		println( ~"cap = " + self.spawn_cap.to_str() ); 
@@ -156,7 +156,7 @@ impl Par {
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
-									println(~"spawns = " + current_spawns.to_str() + ~" cap = " + spawn_cap.to_str());
+									println(~"spawns = " + current_spawns.to_str() + " cap = " + spawn_cap.to_str());
 									let spawn_chan = Par::go();
 									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
@@ -164,7 +164,7 @@ impl Par {
 									while current_spawns > 0 {
 										good_by_port.recv(); // spawn is saying good-by
 										current_spawns -= 1;	
-										println(~"spawns = " + current_spawns.to_str() + ~" cap = " + spawn_cap.to_str());	
+										println(~"spawns = " + current_spawns.to_str() + " cap = " + spawn_cap.to_str());	
 									}
 
 									fit_ch.send( ParFitCommEndChan );

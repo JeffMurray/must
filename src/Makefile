@@ -15,10 +15,10 @@ all: clean
 	./jah_args-tests
 	rustc jah_spec.rs --test -o jah_spec-tests -L .
 	./jah_spec-tests
+	rustc --lib fit.rs -L .
 	rustc --lib jah_mut.rs -L .
 	rustc jah_mut.rs --test -o jah_mut-tests -L .
 	./jah_mut-tests	
-	rustc --lib fit.rs -L .
 	rustc --lib par.rs -L .
 	rustc --lib file_append_json.rs -L .
 	rustc file_append_json.rs --test -o file_append_json-tests -L .

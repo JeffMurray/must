@@ -12,12 +12,24 @@
 //	rustc lurker.rs --test -o lurker-tests -L .
 //	./lurker-tests
 
+//  A b-tree has a leaf, and a lurker has a hole
 
+trait Mound {
 
+	fn find_hole(&self, val: char ) -> Result<Object, None>;
+}
 
+impl Mound for Object {
 
-
-
-
-
-
+	fn find_hole(&self, val: char ) -> Result<Object, None>  {
+		
+		match self.paths.find( from_char( val ) ) {
+			Some( obj ) => {
+				obj
+			}
+			None => {
+				None
+			}
+		}
+	}
+}
