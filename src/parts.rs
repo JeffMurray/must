@@ -26,12 +26,12 @@ use err_fit::{ ErrFit };
 use file_append_json::{ FileAppendJSON };
 //***
 //use jah_spec::{ JahSpeced };
-use par::{ Par, ParInComm, ParTrans, ParCommEndChan, FitOutcome };
-use fit::{ Parfitable, ParFitComm, FitOk, FitErr, FitSysErr, FitArgs, FitErrs };
+use par::{ Par, ParInComm, ParCommEndChan, ParTrans, FitOutcome }; //ParTrans and FitOutcome are used in unit tests
+use fit::{ Parfitable, ParFitComm, FitErrs, FitOk, FitErr, FitSysErr, FitArgs };// FitOk, FitErr, FitSysErr and FitArgs are used in unit tests
 use bootstrap::{ Bootstrap };
-use must::{ Must };
+use must::{ Must }; //Must is us used in unit tests
 use std::hashmap::HashMap;
-use extra::json::{ Object, String, ToJson };
+use extra::json::{ String, ToJson };
 use std::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use std::task::{ spawn, yield };
 
@@ -230,18 +230,13 @@ fn various_parts() {
 		FitOk( _ ) => {
 		}
 		FitSysErr( _ ) => {
-			//io::println( JahArgs::new( err ).to_str() );
 			fail!();
 		}
 		FitErr( _ ) => {
-			//io::println( JahArgs::new( err ).to_str() );
 			fail!();
 		}
 	}
 	let ( p, c ) = oneshot();
 	admin_chan.send( ParTsRelease( c ) );
-	std::io::println( "ack receiving" );
 	recv_one( p );
-	std::io::println( "ack recieved" );
-
 }

@@ -16,9 +16,9 @@ extern mod std;
 extern mod extra;
 extern mod jah_args;
 extern mod bootstrap;
-use extra::json::{ Object, Json, ToJson, List, String, Number, Boolean }; //, String, Number, Null, Boolean, PrettyEncoder
+use extra::json::{ Object, Json, List, String, Number, Boolean, ToJson };
 use std::hashmap::HashMap;
-use std::io::{println, print};
+//use std::io::{println, print};
 use jah_args::{ JahArgs, MissingKey, WrongDataType };
 use bootstrap::{ Bootstrap };
 
@@ -496,8 +496,6 @@ impl ArgRules {
 	}
 }
 
-
-#[test]
 pub fn test_must_spec() {
 
 	//
@@ -1072,3 +1070,4 @@ pub fn spec_missing_must_key() {
 		}
 	}
 }
+

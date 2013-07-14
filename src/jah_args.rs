@@ -464,7 +464,7 @@ fn test_boolean_arg() {
 fn test_list_arg() {
 
 	let mut map = ~HashMap::new();
-	let mut list = ~[ 1f.to_json(), false.to_json() ];
+	let list = ~[ 1f.to_json(), false.to_json() ];
 	map.insert( ~"test_list", list.to_json() );
 	map.insert( ~"test_not_list", true.to_json() );
 	let args = JahArgs::new( map );

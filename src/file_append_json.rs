@@ -20,8 +20,8 @@ extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
 use std::io::{ SeekEnd };
-use std::comm::{ stream, Port, Chan, oneshot, recv_one };
-use extra::json::{ Object, ToJson, PrettyEncoder, String, List };//,Number, Json 
+use std::comm::{ stream, Port, Chan, oneshot, recv_one }; // oneshot and recv_one are used in unit tests
+use extra::json::{ Object, ToJson, PrettyEncoder, String };//,Number, Json , List
 use bootstrap::{ Bootstrap };
 use extra::serialize::Encodable;
 use std::io::{ Create, Append };
@@ -29,7 +29,7 @@ use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr, FitArgs, FitErrs}; //, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
-use must::{ Must };
+use must::{ Must }; // used in unit tests
 
 //	FileAppendJSON receives a document through ParFitComm and appends it to the end of the file described in
 //	self.file_args. 

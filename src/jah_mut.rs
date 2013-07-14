@@ -29,7 +29,7 @@ use extra::json ::{ Json, ToJson, String, Number, Boolean };
 use std::hashmap::HashMap;
 use std::task::{spawn, yield};
 use std::option::{Some, None};
-use std::comm::{ChanOne, Chan, Port, oneshot, recv_one, stream};
+use std::comm::{ChanOne, Chan, Port, stream, oneshot, recv_one}; // oneshot and recv_one are used with unit tests
 
 enum JahMutReq {
 	GetJson( ~str, ChanOne<Option<Json>> ),
@@ -211,7 +211,6 @@ impl JahMut {
 					}
 				}
 				if release {
-					println( "closing arg bank" );
 					break;
 				}
 			}	
@@ -355,7 +354,7 @@ fn test_get_attach(){
 		user_chan.send( GetAttach( ~"attach", c ) );
 		recv_one( p )
 	} {
-		Some( val ) => {
+		Some( _ ) => {
 			fail!();
 		}, _ => {}
 	}	

@@ -16,7 +16,7 @@ extern mod extra;
 extern mod fit;
 use extra::time::Timespec;
 use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm, FitArgs, FitErrs }; // FitTryFail, FitSysErr, FitErr, FitOk, 
-use extra::json::{ Object };
+//use extra::json::{ Object };
 use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
 use std::task::{ spawn, yield };
 
@@ -132,7 +132,7 @@ impl Par {
 	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~FitErrs> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
-		println( ~"cap = " + self.spawn_cap.to_str() ); 
+		//println( ~"cap = " + self.spawn_cap.to_str() ); 
 		let ( good_by_port, good_by_chan ) = stream();
 		let fit_ch = SharedChan::new( fit_chan );
 		let good_by_chan = SharedChan::new( good_by_chan );
@@ -148,15 +148,13 @@ impl Par {
 						},
 						RecvGoodByPort => {
 							good_by_port.recv(); // spawn is saying good-by
-							current_spawns -= 1;
-							println(~"spawns = " + current_spawns.to_str() );		
+							current_spawns -= 1;	
 						},
 						RecvInPort => {
 							let new_req = in_port.recv();
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
-									println(~"spawns = " + current_spawns.to_str() + " cap = " + spawn_cap.to_str());
 									let spawn_chan = Par::go();
 									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
@@ -164,7 +162,6 @@ impl Par {
 									while current_spawns > 0 {
 										good_by_port.recv(); // spawn is saying good-by
 										current_spawns -= 1;	
-										println(~"spawns = " + current_spawns.to_str() + " cap = " + spawn_cap.to_str());	
 									}
 
 									fit_ch.send( ParFitCommEndChan );
@@ -186,6 +183,7 @@ impl Par {
 	
 		let mut to_do = ~[];
 		if current_spawns == spawn_cap { 
+			//println(~"Full: spawns = " + current_spawns.to_str() + " cap = " + spawn_cap.to_str());	
 			to_do.push ( RecvGoodByPort );
 		} else if current_spawns == 0u { 
 			to_do.push ( RecvInPort );

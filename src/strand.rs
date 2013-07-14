@@ -16,8 +16,8 @@ extern mod std;
 extern mod extra;
 extern mod jah_mut;
 extern mod bootstrap;
-use jah_mut::{ JahMutReq, GetStr, JahMut, Release, InsertOrUpdate };
-use extra::json::{ Object, String, ToJson };
+use jah_mut::{ JahMutReq, GetStr, JahMut, Release, InsertOrUpdate};//JahMut, Release and InsertOrUpdate are used in unit tests 
+use extra::json::{ Object, String, ToJson };// String and ToJson are use in unit tests
 use bootstrap::{ Bootstrap };
 use std::comm::{ oneshot, recv_one, SharedChan };
 use std::hashmap::HashMap;

@@ -76,14 +76,12 @@ impl MustBank {
 							match port.recv() {
 								MBTranscript( args, chan_one ) => {
 									t_count += 1;
-									println( ~"t_count = " + t_count.to_str() );
 									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 								}
 								MBRelease( ack_chan ) => {
 									while t_count > 0 { //TODO: put a timeout here
 										goodby_port.recv();
 										t_count -= 1;
-										println( ~"t_count = " + t_count.to_str() );
 									}
 									let ( p, c ) = oneshot();
 									admin_parts_chan.send( ParTsRelease( c ) );
@@ -103,7 +101,7 @@ impl MustBank {
 					}					
 				}
 				Err( errs ) => {
-					fail!(); //yuck here for now :( I'm guessing this is rare
+					fail!(); //yuck here for now :( I'm guessing this is rare but leaving warning to keep the issue open in my mind
 				}
 			}			
 		}		
@@ -159,7 +157,7 @@ impl Transcriptor {
 					match rib_port.recv() {
 						DoFit( key ) => { key }
 						LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json())));break; } //  <- temp band-aid, pure logic errors should be pretty rare 
-						EndOfStrand	=> { std::io::println( "EndOfStrand" ); break; }
+						EndOfStrand	=> { break; }
 					}};
 				let spec_key = { //get the latest spec that was loaded in the arg bank
 					match { let ( p, c ) = oneshot();
@@ -170,9 +168,9 @@ impl Transcriptor {
 					}};
 				let args = { 
 					match Transcriptor::speced_arg_excerpt( Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
-						Ok( args ) => { args }
+						Ok( args ) => { args }													  //Leaving warning for now	
 						Err( err ) => { std::io::println( "speced_arg_excerpt error" ); break; }  //Reporting this error will require the indexes be up and running
-					}};																						//Transcribing this can get tied in with the rest of the reporting
+					}};																			  //Transcribing this can get tied in with the rest of the reporting
 				// get the Par chan and send args
 				let fo: FitOutcome = {
 					match { let ( p, c ) = oneshot();
@@ -319,12 +317,19 @@ fn add_document_strand() {
 	let ( p, c ) = oneshot();
 	must_bank_in.clone().send( MBTranscript( args, c ) );
 	match recv_one( p ) {
-		Ok( t_key ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
-			std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
+		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
+			//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 		}
 		Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 	}
-	yield();yield();yield();yield();yield();
+	
+	// The reason for these yields is that they prevent task failures in teardown
+	// I thinlk I need to figure out how not to call MBRelease after after all the 
+	// transscriptors are up and running.  Since this is a teardown issue, I am
+	// to chew on it a bit while I debate with myself :) whether it is worth adding
+	//	paying for the extra plumbing to keep track of this.	
+	yield();yield();yield();yield();yield();yield();yield();yield();yield();yield();   // <- temp fix 
+						
 	let ( p, c ) = oneshot();
     must_bank_in.clone().send( MBRelease( c ) );
 	recv_one( p );  // wait for the ack
