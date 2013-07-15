@@ -324,7 +324,7 @@ fn add_document_strand() {
 	}
 	
 	// The reason for these yields is that they prevent task failures in teardown
-	// I thinlk I need to figure out how not to call MBRelease after after all the 
+	// I thinlk I need to figure out how not to call MBRelease until after after all the 
 	// transscriptors are up and running.  Since this is a teardown issue, I am
 	// to chew on it a bit while I debate with myself :) whether it is worth adding
 	//	paying for the extra plumbing to keep track of this.	

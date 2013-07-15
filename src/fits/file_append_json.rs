@@ -8,9 +8,9 @@
 
 #[link(name = "file_append_json", vers = "1.0")];
 
-//	rustc --lib file_append_json.rs -L .
-//	rustc file_append_json.rs --test -o file_append_json-tests -L .
-//	./file_append_json-tests
+//	rustc --lib fits/file_append_json.rs -L .
+//	rustc fits/file_append_json.rs --test -o fits/file_append_json-tests -L . -L fits
+//	./fits/file_append_json-tests
 
 extern mod std;
 extern mod extra;

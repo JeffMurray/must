@@ -569,7 +569,7 @@ impl Bootstrap {
  	pub fn spec_find_slice_result() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
-		allowed.insert( ~"attached", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"attach", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", Object(allowed).to_json() );

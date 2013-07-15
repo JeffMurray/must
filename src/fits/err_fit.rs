@@ -8,9 +8,7 @@
 
 #[link(name = "err_fit", vers = "1.0")];
 
-//	rustc --lib err_fit.rs -L .
-//	rustc err_fit.rs --test -o err_fit-tests -L .
-//	./err_fit-tests
+//	rustc --lib fits/err_fit.rs -L .
 
 extern mod std;
 extern mod extra;
@@ -19,14 +17,11 @@ extern mod jah_spec;
 extern mod jah_args;
 use std::comm::{ stream, Port, Chan };  //, SharedChan
 use extra::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
-use std::io::println;
 use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitArgs, FitErrs}; 
 use jah_spec::{ JahSpeced }; 
 use jah_args::{ JahArgs };
 
-//Implements an append only JSON writer that takes a streamable json map and 
-//calculates and writes some system JSONAppendReply variables to an accounting doc 
 struct ErrFit {
 	settings: ~Object
 }

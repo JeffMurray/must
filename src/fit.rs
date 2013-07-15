@@ -24,7 +24,7 @@ use std::to_str::ToStr;
 //  what gets passed around from fit to fit
 struct FitArgs {
 	doc: ~Object,
-	attach: ~[u8] //  Args can deal with only contain 0 or 1 attachment
+	attach: ~[u8] //  Args can only contain 0 or 1 attachment, for multiple attachments use multiple calls
 }
 
 impl FitArgs {

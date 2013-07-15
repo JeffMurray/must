@@ -20,16 +20,16 @@ all: clean
 	rustc jah_mut.rs --test -o jah_mut-tests -L .
 	./jah_mut-tests	
 	rustc --lib par.rs -L .
-	rustc --lib file_append_json.rs -L .
-	rustc file_append_json.rs --test -o file_append_json-tests -L .
-	./file_append_json-tests
-	rustc --lib err_fit.rs -L .
+	rustc --lib fits/file_append_json.rs -L .
+	rustc fits/file_append_json.rs --test -o fits/file_append_json-tests -L . -L fits
+	./fits/file_append_json-tests
+	rustc --lib fits/err_fit.rs -L .
 	rustc --lib strand.rs -L .
 	rustc strand.rs --test -o strand-tests -L .
 	./strand-tests
-	rustc --lib parts.rs -L .	
-	rustc parts.rs --test -o parts-tests -L .
+	rustc --lib parts.rs -L . -L fits	
+	rustc parts.rs --test -o parts-tests -L . -L fits
 	./parts-tests
-	rustc --lib must_bank.rs -L .
-	rustc must_bank.rs --test -o must_bank-tests -L .
+	rustc --lib must_bank.rs -L . -L fits
+	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
 	./must_bank-tests	
