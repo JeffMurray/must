@@ -72,7 +72,7 @@ impl JahSpeced for FileAppendJSON {
 	
 	fn spec_keys_out( &self ) -> ~[~str] {
 	
-		~[~"ma2snwuG8VPGxY8z"]
+		~[Bootstrap::spec_file_slice_key()]
 	}
 }
 
@@ -114,7 +114,7 @@ impl FileAppendJSON {
 			} else if file_reader_rslt.is_err() {
 				match in_port.recv() {
 		  			DoFit( args, home_chan ) => {
-		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"mKdumoT12u9UsAQg" ) ) ) );			  				
+		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"Ov1duvNzsrX9syZb" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else {
@@ -157,10 +157,9 @@ impl FileAppendJSON {
 									append_writer.flush();
 									
 									//put the return args together and send them home
-									let mut r_args = ~HashMap::new();
-									r_args.insert( ~"slice", slice.to_json() );
-									r_args.insert( ~"spec_key", (~"WZody857ygg3YF1x").to_json() );
-									home_chan.send( FitOk( ~FitArgs::from_doc( r_args ) ) );
+									//let mut r_args = ~HashMap::new();
+									slice.insert( ~"spec_key", (Bootstrap::spec_file_slice_key()).to_json() );
+									home_chan.send( FitOk( ~FitArgs::from_doc( slice ) ) );
 								},
 								Err( errs ) => {
 									home_chan.send( FitErr( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"hiLXpCZ3nbya2Oea" )] + errs ) ) );
@@ -248,9 +247,8 @@ fn test_write_and_read() {
 			fail!();
 		}};
 	let jah = JahArgs::new( rval.doc );
-	assert!( JahSpec::new( Bootstrap::find_spec( ~"ma2snwuG8VPGxY8z" ) ).check_args( copy jah ).is_ok() );
-	let slice = JahArgs::new( jah.get_map( ~"slice" ).get() );
-	let len: uint = slice.get_float( ~"len" ).get().to_uint();
+	assert!( JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_file_slice_key() ) ).check_args( copy jah ).is_ok() );
+	let len = jah.get_float( ~"len" ).get().to_uint();
 	assert!( len == JahArgs::new( args ).to_str().len() );
 }
 

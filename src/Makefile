@@ -33,3 +33,6 @@ all: clean
 	rustc --lib must_bank.rs -L . -L fits
 	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
 	./must_bank-tests	
+	rustc --lib fits/file_get_slice.rs -L . -L fits
+	rustc fits/file_get_slice.rs --test -o fits/file_get_slice-tests -L . -L fits
+	./fits/file_get_slice-tests	

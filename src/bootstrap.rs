@@ -46,8 +46,9 @@ impl Bootstrap {
 			~"mXnXQkmmB0GgltVM" => { Bootstrap::end_connection() }
 			~"gSNKN6Ey2JmDx70W" => { Bootstrap::spec_rule_error_spec() } //The spec for the for errors generated through enforcing specs.
 			~"uJmQQbpKD9GrIAYl" => { Bootstrap::spec_fit_sys_err() }
-			~"uHSQ7daYUXqUUPSo" => { Bootstrap::spec_append_doc() }
-			~"ma2snwuG8VPGxY8z" => { Bootstrap::spec_append_doc_success() }
+			~"uHSQ7daYUXqUUPSo" => { Bootstrap::spec_doc() }
+			~"whORgvuF4eBf8vog" => { Bootstrap::spec_file_slice() }
+			~"d6nLKNjnN05tJ2fl" => { Bootstrap::spec_find_slice_result() }
 			_ => { Bootstrap::jah_corrupted_spec() }	
 		}
 	}
@@ -529,7 +530,12 @@ impl Bootstrap {
 	 	spec
  	}	
  	
- 	pub fn spec_append_doc() -> ~Object {
+ 	pub fn spec_doc_key() -> ~str {
+ 	
+ 		~"uHSQ7daYUXqUUPSo"
+ 	}
+ 	
+ 	pub fn spec_doc() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
 		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
@@ -543,7 +549,8 @@ impl Bootstrap {
 		spec
  	}
  	
- 	pub fn spec_find_slice_key() -> ~str {
+ 	
+ 	pub fn spec_file_slice_key() -> ~str {
  	
  		~"whORgvuF4eBf8vog"
  	}
@@ -557,7 +564,7 @@ impl Bootstrap {
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", Object(allowed).to_json() );
-		spec.insert( ~"spec_key", String(Bootstrap::spec_find_slice_key()).to_json() );
+		spec.insert( ~"spec_key", String(Bootstrap::spec_file_slice_key()).to_json() );
 		spec
  	}									
  	
