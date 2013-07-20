@@ -1,6 +1,7 @@
 	
 clean: 
 	rm -f *.so
+	rm -f fits/*.so
 	
 all: clean
 	rustc --lib bootstrap.rs -L .
@@ -20,19 +21,22 @@ all: clean
 	rustc jah_mut.rs --test -o jah_mut-tests -L .
 	./jah_mut-tests	
 	rustc --lib par.rs -L .
-	rustc --lib fits/file_append_json.rs -L .
-	rustc fits/file_append_json.rs --test -o fits/file_append_json-tests -L . -L fits
-	./fits/file_append_json-tests
 	rustc --lib fits/err_fit.rs -L .
 	rustc --lib strand.rs -L .
 	rustc strand.rs --test -o strand-tests -L .
 	./strand-tests
+	rustc --lib fits/file_append_slice.rs -L .
+	rustc fits/file_append_slice.rs --test -o fits/file_append_slice-tests -L . -L fits
+	./fits/file_append_slice-tests	
+	rustc --lib fits/file_get_slice.rs -L . -L fits
+	rustc fits/file_get_slice.rs --test -o fits/file_get_slice-tests -L . -L fits
+	./fits/file_get_slice-tests	
+	rustc --lib fits/doc_slice_prep.rs -L .
+	rustc fits/doc_slice_prep.rs --test -o fits/doc_slice_prep-tests -L . -L fits
+	./fits/doc_slice_prep-tests	
 	rustc --lib parts.rs -L . -L fits	
 	rustc parts.rs --test -o parts-tests -L . -L fits
 	./parts-tests
 	rustc --lib must_bank.rs -L . -L fits
 	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
 	./must_bank-tests	
-	rustc --lib fits/file_get_slice.rs -L . -L fits
-	rustc fits/file_get_slice.rs --test -o fits/file_get_slice-tests -L . -L fits
-	./fits/file_get_slice-tests	

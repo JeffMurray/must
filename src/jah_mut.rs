@@ -117,7 +117,7 @@ impl JahMut {
 											if attached.contains_key( &atch_name ) {
 												attached.remove( &atch_name );
 											}
-											attached.insert( copy atch_name, args.attach );												
+											attached.insert(  atch_name, copy args.attach );												
 										} _ =>{}
 									}
 								}

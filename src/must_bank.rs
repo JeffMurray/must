@@ -8,8 +8,8 @@
  
  #[link(name = "must_bank", vers = "1.0")];  
  
-//	rustc --lib must_bank.rs -L .
-//	rustc must_bank.rs --test -o must_bank-tests -L .
+//	rustc --lib must_bank.rs -L . -L fits
+//	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
 //	./must_bank-tests
 
 extern mod std;
@@ -23,15 +23,15 @@ extern mod bootstrap;
 extern mod strand;
 extern mod must;
 extern mod parts;
-use jah_args::{ JahArgs };
+use jah_args::{ JahArgs, MissingKey, WrongDataType };
 use jah_spec::{ JahSpec };
 use par::{ FitOutcome, ParTrans };
 use fit::{ FitOk, FitErr, FitSysErr, FitErrs, FitArgs };
 use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr, ParTsRelease };
 use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
-use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release }; // 
-use extra::json::{ Object, String, ToJson };
+use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release, GetAttach };
+use extra::json::{ Object, String, ToJson, to_pretty_str };
 use bootstrap::{ Bootstrap };
 use std::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
 use std::hashmap::HashMap;
@@ -79,7 +79,7 @@ impl MustBank {
 									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 								}
 								MBRelease( ack_chan ) => {
-									while t_count > 0 { //TODO: put a timeout here
+									while t_count > 0 { //TODO: put a timeout here?
 										goodby_port.recv();
 										t_count -= 1;
 									}
@@ -119,20 +119,34 @@ impl MustBank {
 				}
 			}};
 		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) ); // FileAppendJSON
+				admin_chan.send( AddParT( Bootstrap::file_append_slice_key(), c ) );  //FileAppendSlice
+				recv_one( p )
+			} {
+				Ok( _ ) => {}
+				Err( _ ) => { fail!(); }
+		}
+		match {	let ( p, c ) = oneshot();
+				admin_chan.send( AddParT( Bootstrap::err_fit_key(), c ) );  // ErrFit
+				recv_one( p )
+			} {
+				Ok( _ ) => {}
+				Err( _ ) => { fail!(); }
+		}
+		match {	let ( p, c ) = oneshot();
+				admin_chan.send( AddParT( Bootstrap::doc_slice_prep_key(), c ) );  // DocSlicePrep
+				recv_one( p )
+			} {
+				Ok( _ ) => {}
+				Err( _ ) => { fail!(); }
+		}
+		match {	let ( p, c ) = oneshot();
+				admin_chan.send( AddParT(  Bootstrap::file_get_slice_key(), c ) );  // FileGetSlice
 				recv_one( p )
 			} {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
 		}
 		
-		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) ); // ErrFit
-				recv_one( p )
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
-		}
 		Ok(( user_chan, admin_chan ))
 	}
 }
@@ -178,7 +192,7 @@ impl Transcriptor {
 						recv_one( p )
 						} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 								let ( p2, c2 ) = oneshot();
-								part_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c2 ) ); // ChanOne<ParTOutComm>
+								part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
 								recv_one( p2 )
 							} 
 							ParTErr( err ) => { std::io::println( err.to_str() ); break; }
@@ -188,11 +202,42 @@ impl Transcriptor {
 				
 				match copy fo.outcome {
 					FitOk( rval ) => {
-						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( rval.doc ) ) );
-						rib_chan.send( NextOk );
+						let jah = JahArgs::new( copy rval.doc );
+						match jah.get_str( ~"spec_key" ) {
+							Ok( key ) => {
+								let spec = ~JahSpec::new( Bootstrap::find_spec( key ) );
+								match spec.check_args( jah ) {
+									Ok( _ ) => {
+										arg_bank_admin_chan.send( MergeArgs( rval ) );
+										rib_chan.send( NextOk );					
+									}
+									Err( errs ) => {
+										let fit_errs = FitErrs::from_objects( errs);
+										//println( to_pretty_str( &Object( copy doc ).to_json() ) );
+										arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( fit_errs.to_args() ) ) );
+										rib_chan.send( NextErr );									
+									}
+								}
+							}
+							Err( err_type ) => {
+								let errs = {
+									match err_type {
+										MissingKey => {
+											FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"must_bank.rs" ) )
+										}
+										WrongDataType => {
+											FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"must_bank.rs" ) )
+										}
+									}};
+								arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( errs.to_args() ) ) );
+								rib_chan.send( NextErr );														
+							}
+						}
 					}
 					FitErr( rval ) => {
-						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( Bootstrap::err_pack( rval.errs ) ) ) );
+						let doc = rval.to_args();
+						//println( to_pretty_str( &Object( copy doc ).to_json() ) );
+						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( doc ) ) );
 						rib_chan.send( NextErr );
 					}
 					FitSysErr( err ) => {
@@ -227,32 +272,49 @@ impl Transcriptor {
 	//  adherence to the expected spec. If everything passes, Ok( args ) is returned, 
 	//  otherwise descriptive error messages are returned, according to spec ;).
 	
-	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~Object, ~[~Object]> {
+	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~FitArgs, ~FitErrs> {
 		
 		let jah_spec = JahSpec::new( spec );
 		let mut rval = ~HashMap::new();
 		let keys = { 
 			match jah_spec.allowed_keys() {
 				Ok( keys ) => { keys } 
-				Err( err ) => { return Err( err ); }
+				Err( err ) => { return Err( FitErrs::from_objects( err ) ) }
 				}};
 		for keys.iter().advance | key | {
 				match {let ( p, c ) = oneshot();
-				arg_bank_chan.send( GetJson( copy *key, c ) );
+				arg_bank_chan.send( GetJson( copy *key, c ) );  // not sure all this back and forth is worth it
 				recv_one( p )
 			}
 			{	Some( arg_val ) => { 
-					rval.insert( copy *key, arg_val ); // <--
+					rval.insert( copy *key, arg_val ); // <-- a little bit lost?  Maybe iter() belongs on jah_mut to reduce communication overhead?
 				}
 				None => {}  // leaving the ramifications of this missing arg to the spec check	
 			}
 		}
-		match jah_spec.check_args( JahArgs::new( copy rval ) ) {
+		let jah = JahArgs::new( copy rval );
+		match jah_spec.check_args( copy jah  ) {
 			Ok( _ ) => {
-				Ok( rval ) // we have validated args, ready to roll
+				match jah.get_str(~"attach") {
+					Ok( attached_name ) => {
+						let ( p, c ) = oneshot();
+						arg_bank_chan.send( GetAttach( copy attached_name, c ) );
+						match recv_one( p ) {
+							Some( attached_bytes ) => {
+								Ok( ~FitArgs{ doc: rval, attach: attached_bytes } ) 
+							}
+							None => {
+								Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), copy attached_name, ~"Kyzltdf11TRcTIiI", ~"must_bank.rs" ) ) )
+							}
+						}
+					}
+					Err( _ ) => { //  not really an error, just no need to send an attachment
+						Ok( ~FitArgs::from_doc( rval ) )
+					}
+				}
 			}
 			Err( errs ) => {
-				Err( errs ) 
+				Err( FitErrs::from_objects( errs ) )
 			}
 		}
 	}
@@ -294,7 +356,7 @@ fn add_document_strand() {
 			args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 			args.insert( ~"must", Must::new().to_json() );	
 			args.insert( ~"doc", doc.to_json() );
-			args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+			args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 			let ( p, c ) = oneshot();
 			mbs.send( MBTranscript( args, c ) );
 			match recv_one( p ) {
@@ -313,7 +375,7 @@ fn add_document_strand() {
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
-	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+	args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 	let ( p, c ) = oneshot();
 	must_bank_in.clone().send( MBTranscript( args, c ) );
 	match recv_one( p ) {

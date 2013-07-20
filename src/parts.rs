@@ -20,10 +20,14 @@ extern mod bootstrap;
 extern mod must;
 //extern mod jah_spec;
 //excuse me while I load the fits here for now.
-extern mod file_append_json;
+extern mod file_get_slice;
+extern mod file_append_slice;
+extern mod doc_slice_prep;
 extern mod err_fit;
 use err_fit::{ ErrFit };
-use file_append_json::{ FileAppendJSON };
+use file_get_slice::{ FileGetSlice };
+use file_append_slice::{ FileAppendSlice };
+use doc_slice_prep::{ DocSlicePrep };
 //***
 //use jah_spec::{ JahSpeced };
 use par::{ Par, ParInComm, ParCommEndChan, ParTrans, FitOutcome }; //ParTrans and FitOutcome are used in unit tests
@@ -69,7 +73,7 @@ impl ParTs {
 			let mut parts = ~HashMap::new();
 			loop {
 				let mut recvd = false;
-				let mut break_again = false;  //Haven't figured out how to directly exit a spawn from an inner loop
+				let mut break_again = false;  //Haven't figured out how to directly exit a spawn from an inner loop without using fail!()
 				while admin_port.peek() {
 					recvd = true;
 					let part: ParTInAdminComm = admin_port.recv();
@@ -148,13 +152,25 @@ impl ParTs {
 				config.insert( ~"path", String(~"test.json").to_json() );
 				config.insert( ~"num", 1u.to_json() );
 				config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
-				let fit = ~FileAppendJSON{ file_args: config };
+				let fit = ~FileAppendSlice{ file_args: config };
+				fit.connect()
+			}
+			~"GwldCnkeG6FvjMiL" => {
+				let mut config = ~HashMap::new();
+				config.insert( ~"path", String(~"test.json").to_json() );
+				config.insert( ~"num", 1u.to_json() );
+				config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
+				let fit = ~FileGetSlice{ file_args: config };
+				fit.connect()
+			}
+			~"6Ssa58eFrC5Fpmys" => {
+				let fit = ~DocSlicePrep{ settings: ~HashMap::new() };
 				fit.connect()
 			}
 			~"Zbh4OJ4uE1R1Kkfr" => {
 				let fit = ~ErrFit{ settings: ~HashMap::new() };
 				fit.connect()
-			}
+			}			
 			_ => {
 				Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"parts.rs", ~"Wpk72dvmISQYKvFN" ) ) )
 			}
@@ -195,14 +211,28 @@ fn various_parts() {
 			} _ => { fail!(); }
 		}};
 	match {	let ( p, c ) = oneshot();
-			admin_chan.send( AddParT( ~"S68yWotrIh06IdE8", c ) );
+			admin_chan.send( AddParT( Bootstrap::file_append_slice_key(), c ) );  //FileAppendSlice
 			recv_one( p )
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
 	match {	let ( p, c ) = oneshot();
-			admin_chan.send( AddParT( ~"Zbh4OJ4uE1R1Kkfr", c ) );
+			admin_chan.send( AddParT( Bootstrap::err_fit_key(), c ) );  // ErrFit
+			recv_one( p )
+		} {
+			Ok( _ ) => {}
+			Err( _ ) => { fail!(); }
+	}
+	match {	let ( p, c ) = oneshot();
+			admin_chan.send( AddParT( Bootstrap::doc_slice_prep_key(), c ) );  // DocSlicePrep
+			recv_one( p )
+		} {
+			Ok( _ ) => {}
+			Err( _ ) => { fail!(); }
+	}
+	match {	let ( p, c ) = oneshot();
+			admin_chan.send( AddParT(  Bootstrap::file_get_slice_key(), c ) );  // FileGetSlice
 			recv_one( p )
 		} {
 			Ok( _ ) => {}
@@ -213,19 +243,20 @@ fn various_parts() {
 	let mut args = ~HashMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-	args.insert( ~"must", Must::new().to_json() );	
+	//args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
-	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-	let fo: FitOutcome = match { let ( p, c ) = oneshot();
-		user_chan.send( GetParTChan( ~"S68yWotrIh06IdE8", c ) ); // ChanOne<ParTOutComm>
-		recv_one( p )
+	args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
+	let fo: FitOutcome = {
+			match { let ( p, c ) = oneshot();
+			user_chan.send( GetParTChan( ~"6Ssa58eFrC5Fpmys", c ) ); // ChanOne<ParTOutComm>
+			recv_one( p )
 		} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 				let ( p2, c2 ) = oneshot();
 				part_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c2 ) ); // ChanOne<ParTOutComm>
 				recv_one( p2 )
 			} 
 			ParTErr( _ ) => { fail!(); } // spec VWnPY4CStrXkk4SU
-		};
+		}};
 	match copy fo.outcome {
 		FitOk( _ ) => {
 		}

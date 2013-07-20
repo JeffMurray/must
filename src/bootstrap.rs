@@ -15,6 +15,11 @@ extern mod extra;
 use extra::json ::{ Object, ToJson, String, List}; //, Json 
 use std::hashmap::HashMap;
 
+//  I'm leaving this with a long name like bootstrap to remind me how 
+//	how badly I need to move these to a settings file :)
+//	I'm considering naming the settings file BS, but maybe that is 
+//	just the mood I am in.
+
 //	Low Level JSON Specifications for JahSpecs, Rules and Errors that 
 //	need to be used prior to the master b+tree being up and running **
 
@@ -39,19 +44,28 @@ impl Bootstrap {
 	pub fn find_spec( spec_key: ~str ) -> ~Object {
 		
 		match spec_key {
-			~"VMldwIx01Q0ogNQb" => { Bootstrap::jah_spec_spec() } // see jah_spec.rs for a description of jah_specs
-			~"MSzKdSSWEIP6WC5S" => { Bootstrap::jah_corrupted_spec() } // return this when you would otherwise throw an error 
+			~"VMldwIx01Q0ogNQb" => { Bootstrap::spec_jah_spec() } // see jah_spec.rs for a description of jah_specs
+			~"MSzKdSSWEIP6WC5S" => { Bootstrap::spec_jah_spec_corrupt() } // return this when you would otherwise throw an error because of a bad spec 
 			~"k0fA2inA45gmmZHV" => { Bootstrap::spec_must() } // holds the must key
 			~"g63UcB7rekfP4TlI" => { Bootstrap::spec_rule_spec() }	
-			~"mXnXQkmmB0GgltVM" => { Bootstrap::end_connection() }
 			~"gSNKN6Ey2JmDx70W" => { Bootstrap::spec_rule_error_spec() } //The spec for the for errors generated through enforcing specs.
 			~"uJmQQbpKD9GrIAYl" => { Bootstrap::spec_fit_sys_err() }
-			~"uHSQ7daYUXqUUPSo" => { Bootstrap::spec_doc() }
+			~"uHSQ7daYUXqUUPSo" => { Bootstrap::spec_add_doc() }
+			~"CJeCZR6b9t6jj46S" => { Bootstrap::spec_edit_doc() }
 			~"whORgvuF4eBf8vog" => { Bootstrap::spec_file_slice() }
 			~"d6nLKNjnN05tJ2fl" => { Bootstrap::spec_find_slice_result() }
-			_ => { Bootstrap::jah_corrupted_spec() }	
+			~"cb2jMrSLSf72526W" => { Bootstrap::spec_append_slice() }
+			~"TqXOr3DcqolwQavT" => { Bootstrap::spec_stored_doc() }
+			~"H4rthuJ99hvwg8FZ" => { Bootstrap::fit_errs() }
+			_ => { Bootstrap::spec_jah_spec_corrupt() }	
 		}
 	}
+	
+	// ************** Parts ****************
+	pub fn file_append_slice_key() -> ~str { ~"S68yWotrIh06IdE8" }  //FileAppendSlice
+	pub fn err_fit_key() -> ~str { ~"Zbh4OJ4uE1R1Kkfr" }  // ErrFit
+	pub fn doc_slice_prep_key() -> ~str { ~"6Ssa58eFrC5Fpmys" }  // DocSlicePrep
+	pub fn file_get_slice_key() -> ~str { ~"GwldCnkeG6FvjMiL" }  // FileGetSlice
 	
 	//	**Requests that can be sent before the document system is up and running **
 	 	 
@@ -125,28 +139,17 @@ impl Bootstrap {
 		err
 	 }  
 	 
-	 pub fn err_pack_key() -> ~str {
-	 
-	 	~"VWnPY4CStrXkk4SU"
-	 }
-	 
-	//packages 1 or more errors
-	pub fn err_pack( errs: ~[~Object] ) -> ~Object {
-	
-		// Ahh how faint design errors push themselves out
-		// at least mk_mon_err is only for rare errors
-		let mut lst = ~[];
-		for errs.iter().advance | err | {
-			lst.push( err.to_json() );
-		}
+	// Fit Rule Keys
+	pub fn slice_len_cannot_be_zero() -> ~str {
 		
-		let mut mon_err = ~HashMap::new();
-		mon_err.insert( ~"errs", List( lst ).to_json() );
-		mon_err.insert( ~"spec_key", String( Bootstrap::err_pack_key() ).to_json() );
-		mon_err
-	}
+		~"ylmS0MTyl7abwJ5f"		
+	}	
 	
-
+	pub fn named_attachment_is_missing() -> ~str {
+		
+		~"O2HbOCBd8z0yUZYh"		
+	}	
+		
 	// Part Rule keys
 	
 	pub fn part_does_not_exist() -> ~str {
@@ -170,6 +173,7 @@ impl Bootstrap {
 	}
 	 
 	pub fn arg_spec_key_not_known_to_par() -> ~str {
+	
 	 
 	 	~"DZNl64Jyib2sQgde" 
 	}
@@ -224,7 +228,7 @@ impl Bootstrap {
 		rule
 	}
 	 
-	pub fn arg_rule_key_arg_key_must_be_string() -> ~str {
+	pub fn arg_rule_arg_must_be_string_key() -> ~str {
 	 
 	 	~"rWa4heRrNWkwabbB" 
 	}
@@ -232,7 +236,7 @@ impl Bootstrap {
  	pub fn arg_rule_arg_must_be_string() -> ~Object { 
 	 
 		let mut rule = ~HashMap::new();
-		rule.insert( ~"rule_key", Bootstrap::arg_rule_key_arg_key_must_be_string().to_json() );
+		rule.insert( ~"rule_key", Bootstrap::arg_rule_arg_must_be_string_key().to_json() );
 		rule
 	}
  
@@ -440,33 +444,36 @@ impl Bootstrap {
 	}
 	
 	// returned if jah_spec cannot determine what the spec key is
-	pub fn jah_corrupted_spec_key() -> ~str {
+	pub fn spec_jah_spec_corrupt_key() -> ~str {
 		
 		~"MSzKdSSWEIP6WC5S"
 	}	
 
-	pub fn jah_corrupted_spec() -> ~Object {
+	pub fn spec_jah_spec_corrupt() -> ~Object {
 	
 	 	let mut spec = ~HashMap::new();
-	 	spec.insert(~"spec_key",String(Bootstrap::jah_corrupted_spec_key()));
+	 	spec.insert(~"spec_key",String(Bootstrap::spec_jah_spec_corrupt_key()));
 	 	let mut allowed = ~HashMap::new();
-	 	allowed.insert(~"allowed", List(~[]) ); 
+ 		allowed.insert( ~"spec_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+ 		]);
 	 	spec.insert(~"allowed", allowed.to_json() ); 
 	 	spec		
 	}
 	
 		//	The jah_spec that JahSpec must conform to
 	
-	pub fn jah_spec_spec_key() -> ~str {
+	pub fn spec_jah_spec_key() -> ~str {
 		
 		~"VMldwIx01Q0ogNQb" 
 	}
 		
- 	pub fn jah_spec_spec() -> ~Object {
+ 	pub fn spec_jah_spec() -> ~Object {
 	 
 	 	let mut spec = ~HashMap::new();
 	 	//	The key for the main source of information about the Jah specification
-	 	spec.insert(~"spec_key",String(Bootstrap::jah_spec_spec_key()));
+	 	spec.insert(~"spec_key",String(Bootstrap::spec_jah_spec_key()));
 	 	let mut allowed = ~HashMap::new();
 	 	//	A list that specifies the rules to apply to the "allowed" argument.
 	 	//	Every JahSpec has to have an arg called "allowed", which holds
@@ -481,7 +488,7 @@ impl Bootstrap {
 	 	spec
 	 }
 	 
-	 	 pub fn spec_must_must_key() -> ~str {
+ 	 pub fn spec_must_key() -> ~str {
 	 
 	 	~"k0fA2inA45gmmZHV"
 	 }
@@ -506,7 +513,7 @@ impl Bootstrap {
  		]);	
 	 	let mut spec = ~HashMap::new();
 	 	//	The must for the main source of information about the Jah specification
-	 	spec.insert( ~"spec_key", String( Bootstrap::spec_must_must_key() ).to_json() );		
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_must_key() ).to_json() );		
 	 	spec.insert( ~"allowed", allowed.to_json() ); 	
 	 	spec
 	 }
@@ -530,12 +537,49 @@ impl Bootstrap {
 	 	spec
  	}	
  	
- 	pub fn spec_doc_key() -> ~str {
+ 	pub fn spec_add_doc_key() -> ~str {
  	
  		~"uHSQ7daYUXqUUPSo"
  	}
  	
- 	pub fn spec_doc() -> ~Object {
+ 	pub fn spec_add_doc() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"acct", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"doc", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", Object(allowed).to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
+		spec
+ 	}
+
+ 	pub fn spec_stored_doc_key() -> ~str {
+ 	
+ 		~"TqXOr3DcqolwQavT"
+ 	}
+ 	
+ 	pub fn spec_stored_doc() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"acct", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"doc", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"must", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", Object(allowed).to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
+		spec
+ 	}
+ 	
+ 	pub fn spec_edit_doc_key() -> ~str {
+ 	
+ 		~"CJeCZR6b9t6jj46S"
+ 	}
+ 	
+ 	pub fn spec_edit_doc() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
 		allowed.insert( ~"user", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
@@ -545,11 +589,10 @@ impl Bootstrap {
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json()] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", Object(allowed).to_json() );
-		spec.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::spec_edit_doc_key() ).to_json() );
 		spec
  	}
- 	
- 	
+ 	 	
  	pub fn spec_file_slice_key() -> ~str {
  	
  		~"whORgvuF4eBf8vog"
@@ -584,27 +627,35 @@ impl Bootstrap {
 		spec
  	}
  	
- 	pub fn spec_append_doc_success() -> ~Object {
+ 	pub fn spec_append_slice_key() -> ~str {
+	 	
+	 	~"cb2jMrSLSf72526W"
+	}
+		
+ 	pub fn spec_append_slice() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
-		allowed.insert( ~"slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"attach", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", allowed.to_json() );
-		spec.insert( ~"spec_key", String(~"ma2snwuG8VPGxY8z").to_json() );
+		spec.insert( ~"spec_key", String(Bootstrap::spec_append_slice_key()).to_json() );
 		spec
 	}
- 	//	A request that the channel end communication
- 	
-	pub fn end_connection_key() -> ~str {
+	
+ 	pub fn fit_errs_key() -> ~str {
 	 	
-	 	~"mXnXQkmmB0GgltVM"
+	 	~"H4rthuJ99hvwg8FZ"
 	}
-	 
-	pub fn end_connection() -> ~Object {
-	 
-	 	let mut order = ~HashMap::new();
-	 	order.insert( ~"spec_key", String( Bootstrap::end_connection_key() ).to_json() );
-	 	order
-	 } 
+		
+ 	pub fn fit_errs() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"errs", List( ~[Bootstrap::arg_rule_arg_must_be_a_list().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::fit_errs_key() ).to_json() );
+		spec
+	}	
 }

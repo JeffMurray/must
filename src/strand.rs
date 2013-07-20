@@ -159,7 +159,7 @@ impl Ribosome {
 			~"UWmoVWUMfKsL8oyr" => { ~[ {
 				let mut mapped_strands =  ~HashMap::new();
 					//I can only do add document with this spec at the moment
-					mapped_strands.insert( ~"uHSQ7daYUXqUUPSo", ~"0loMIC2O3UW1yuTW" );
+					mapped_strands.insert( Bootstrap::spec_add_doc_key(), ~"0loMIC2O3UW1yuTW" );
 					
 					let strand_map = ~StrandKeyMap {
 							mapped_strands: copy mapped_strands,
@@ -168,9 +168,14 @@ impl Ribosome {
 					KeyMatch( ~"spec_key", strand_map )			
 				 	} ] }			
 			//Add document
-			~"0loMIC2O3UW1yuTW" => { ~[ OkErr( ~"S68yWotrIh06IdE8", ~"DROOg7Vt2GXiVl00" ) ] }
+			~"0loMIC2O3UW1yuTW" => { ~[ 
+				OkErr( Bootstrap::doc_slice_prep_key(), ~"DROOg7Vt2GXiVl00" ),
+				OkErr( Bootstrap::file_append_slice_key(), ~"DROOg7Vt2GXiVl00" ) // next step is index services
+				//OkErr( Bootstrap::file_get_slice_key(), ~"DROOg7Vt2GXiVl00" ),
+				//OkErr( Bootstrap::err_fit_key(), ~"DROOg7Vt2GXiVl00" ) //output to screen
+				] }
 			//Error output to terminal
-			~"DROOg7Vt2GXiVl00" => { ~[ OkErr( ~"Zbh4OJ4uE1R1Kkfr", ~"fUhzdaBaEYITxXET" ) ] }
+			~"DROOg7Vt2GXiVl00" => { ~[ OkErr( Bootstrap::err_fit_key(), ~"fUhzdaBaEYITxXET" ) ] }
 			//Empty strand
 			~"fUhzdaBaEYITxXET" => { ~[] }
 			~"o88KanesoJ6J19uN" => { 
@@ -213,13 +218,13 @@ fn various() {
 	}	
 	chan.send( NextOk );
 	match port.recv() {
-		DoFit( key ) => { assert!( key == ~"S68yWotrIh06IdE8" ) }
+		DoFit( key ) => { println( key ); assert!( key == Bootstrap::doc_slice_prep_key() ) }
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextErr );
 	match port.recv() {
-		DoFit( key ) => { assert!( key == ~"Zbh4OJ4uE1R1Kkfr" ) } // the first fit in the error strand
+		DoFit( key ) => { assert!( key == Bootstrap::err_fit_key() ) } // the first fit in the error strand
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		EndOfStrand	=> { fail!() }	
 	}

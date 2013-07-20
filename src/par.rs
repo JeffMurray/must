@@ -56,7 +56,7 @@ enum ParInComm {
 }
 
 enum SpawnComm {
-	SpawnDoFit( ~FitArgs, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<int>, uint ) // args, fit_chan, home_chan, good_by_chan, spawns
+	SpawnDoFit( ~FitArgs, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<()>, uint ) // args, fit_chan, home_chan, good_by_chan, spawns
 }
 
 struct FitOutcome {
@@ -122,7 +122,7 @@ impl Par {
 						outcome: outcome,
 						spawns: spawns
 					} );		
-					par_chan.send( 1i ); //sending a notice to decrement the spawn counter			
+					par_chan.send( () ); //sending a notice to decrement the spawn counter			
 				}
 			}
 		}
@@ -132,7 +132,6 @@ impl Par {
 	priv fn spawn_and_run( &self, in_port: Port<ParInComm>, fit_chan: Chan<ParFitComm> ) -> Result<bool, ~FitErrs> {
 	
 		let spawn_cap = if self.spawn_cap > 0 { self.spawn_cap } else { 20u };
-		//println( ~"cap = " + self.spawn_cap.to_str() ); 
 		let ( good_by_port, good_by_chan ) = stream();
 		let fit_ch = SharedChan::new( fit_chan );
 		let good_by_chan = SharedChan::new( good_by_chan );

@@ -85,7 +85,7 @@ impl JahSpec {
 				key_val
 			}
 			Err( _ ) => {
-				Bootstrap::jah_corrupted_spec_key()
+				Bootstrap::spec_jah_spec_corrupt_key()
 			}
 		}
 	}
@@ -141,10 +141,10 @@ impl JahSpec {
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"spec_key", Bootstrap::jah_spec_spec_key(), ~"a5q3rNiRtXeoO9Wj" ) ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"spec_key", Bootstrap::spec_jah_spec_key(), ~"a5q3rNiRtXeoO9Wj" ) ] )
 					}
 					WrongDataType => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"spec_key", Bootstrap::jah_spec_spec_key(), ~"EkhF0tz8VkQdmZL9" ) ] )
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", Bootstrap::spec_jah_spec_key(), ~"EkhF0tz8VkQdmZL9" ) ] )
 					}					
 				}
 			}
@@ -154,7 +154,7 @@ impl JahSpec {
 			let keys = self.spec_args.arg_keys();
 			for keys.iter().advance | key | {
 				if !( key ==  &~"spec_key" || key == &~"allowed" ) {
-					return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_is_not_allowed(), copy *key, Bootstrap::jah_spec_spec_key(), ~"yTI6O36SdlSKrlVV" ) ] )
+					return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_is_not_allowed(), copy *key, Bootstrap::spec_jah_spec_key(), ~"yTI6O36SdlSKrlVV" ) ] )
 				}
 			}
 		}
@@ -191,7 +191,7 @@ impl JahSpec {
 									//not possible because we are checking a confirmed list of parameters
 								}
 								WrongDataType => {
-									return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_list(), copy *key, Bootstrap::jah_spec_spec_key(), ~"BWVlZZ1zI9hRBCaJ" ) ] )
+									return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_list(), copy *key, Bootstrap::spec_jah_spec_key(), ~"BWVlZZ1zI9hRBCaJ" ) ] )
 								}
 							}
 						}						
@@ -222,7 +222,7 @@ impl JahSpec {
 					}
 				}
 				_ => {
-					return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_object(), copy rule_key, Bootstrap::jah_spec_spec_key(), ~"ALsKq4AAUB7E4hjR" ) ] )
+					return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_object(), copy rule_key, Bootstrap::spec_jah_spec_key(), ~"ALsKq4AAUB7E4hjR" ) ] )
 				}
 			}
 		}
@@ -361,7 +361,7 @@ impl JahSpec {
 				}
 			}
 			_ => {
-				~[  Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_object(), copy arg_key, Bootstrap::jah_spec_spec_key(), ~"PhcnkCq9SzjjK3dc" )  ]
+				~[  Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_be_object(), copy arg_key, Bootstrap::spec_jah_spec_key(), ~"PhcnkCq9SzjjK3dc" )  ]
 			}							
 		}
 	}
@@ -380,7 +380,7 @@ impl ArgRules {
 					//arg_rule_required - this is checked in JahSpec.check_required
 					Ok(true) 
 				}
-				else if rule_key == Bootstrap::arg_rule_key_arg_key_must_be_string() {
+				else if rule_key == Bootstrap::arg_rule_arg_must_be_string_key() {
 					ArgRules::arg_rule_must_be_string( copy arg_key, copy spec_key, val )
 				}
 				else if rule_key == Bootstrap::arg_rule_key_arg_must_be_object() {  
@@ -418,7 +418,7 @@ impl ArgRules {
 						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_exist(), ~"rule_key",  Bootstrap::spec_rule_spec_key(), ~"spDzbsBn37HorqMZ") ] )
 					}
 					WrongDataType => {
-						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"rule_key",  Bootstrap::spec_rule_spec_key(), ~"pxLJQ3RhHm5ls4YF") ] )
+						Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"rule_key",  Bootstrap::spec_rule_spec_key(), ~"pxLJQ3RhHm5ls4YF") ] )
 					}
 				}
 			}			
@@ -462,7 +462,7 @@ impl ArgRules {
 				Ok( true )
 			},
 			_ => { 
-				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_key_must_be_string(), copy arg_key, copy spec_key, ~"bRRoirXHglnOzRza") ] ) 
+				Err( ~[ Bootstrap::spec_rule_error(Bootstrap::arg_rule_arg_must_be_string_key(), copy arg_key, copy spec_key, ~"bRRoirXHglnOzRza") ] ) 
 			}
 		}
 	}
@@ -707,7 +707,7 @@ pub fn test_string_rules() {
 				let jah = JahArgs::new( copy *err );
 	 			match ArgRules::get_rule_key( jah ) {
 	 				Ok( key ) => {
-	 					if key == Bootstrap::arg_rule_key_arg_key_must_be_string() {
+	 					if key == Bootstrap::arg_rule_arg_must_be_string_key() {
 	 						return;
 	 					}
 	 				}

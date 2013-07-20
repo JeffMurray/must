@@ -91,7 +91,7 @@ impl Must{
  				Must::from_obj( copy *obj )
  			}
 	 		_ => {
-	 			Err( ~[Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_object(), ~"must", Bootstrap::spec_must_must_key(), ~"Q7wOoPiMNJ6xgqL1")] )
+	 			Err( ~[Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_object(), ~"must", Bootstrap::spec_must_key(), ~"Q7wOoPiMNJ6xgqL1")] )
 	 		}
  		}
 	}
@@ -106,10 +106,10 @@ impl Must{
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"key",  Bootstrap::spec_must_must_key(), ~"ziVrdrQE6xeIjDLj" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"key",  Bootstrap::spec_must_key(), ~"ziVrdrQE6xeIjDLj" ) ] );
 					}
 					WrongDataType => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_key_must_be_string(), ~"key",  Bootstrap::spec_must_must_key(), ~"dtmIT0qQ2170Eohm" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_must_be_string_key(), ~"key",  Bootstrap::spec_must_key(), ~"dtmIT0qQ2170Eohm" ) ] );
 					}
 				}	
 			}
@@ -119,10 +119,10 @@ impl Must{
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"sec",  Bootstrap::spec_must_must_key(), ~"xSHex3PgO1VFrm5d" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"sec",  Bootstrap::spec_must_key(), ~"xSHex3PgO1VFrm5d" ) ] );
 					}
 					WrongDataType => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"sec",  Bootstrap::spec_must_must_key(), ~"WDmdBc78ERtcJaZC" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"sec",  Bootstrap::spec_must_key(), ~"WDmdBc78ERtcJaZC" ) ] );
 					}
 				}	
 			}
@@ -132,10 +132,10 @@ impl Must{
 			Err( err ) => {
 				match err {
 					MissingKey => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"2k5bXat4lBIhehIt" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_key_arg_must_exist(), ~"nsec",  Bootstrap::spec_must_key(), ~"2k5bXat4lBIhehIt" ) ] );
 					}
 					WrongDataType => {
-						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"nsec",  Bootstrap::spec_must_must_key(), ~"nbON1bWP9U4NWFf7" ) ] );
+						return Err( ~[ Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_key_arg_must_be_number(), ~"nsec",  Bootstrap::spec_must_key(), ~"nbON1bWP9U4NWFf7" ) ] );
 					}
 				}	
 			}

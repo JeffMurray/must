@@ -6,11 +6,11 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "file_append_json", vers = "1.0")];
+#[link(name = "file_append_slice", vers = "1.0")];
 
-//	rustc --lib fits/file_append_json.rs -L .
-//	rustc fits/file_append_json.rs --test -o fits/file_append_json-tests -L . -L fits
-//	./fits/file_append_json-tests
+//	rustc --lib fits/file_append_slice.rs -L .
+//	rustc fits/file_append_slice.rs --test -o fits/file_append_slice-tests -L . -L fits
+//	./fits/file_append_slice-tests
 
 extern mod std;
 extern mod extra;
@@ -19,7 +19,7 @@ extern mod bootstrap;
 extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
-use std::io::{ SeekEnd };
+use std::io::{ SeekEnd, BytesWriter };
 use std::comm::{ stream, Port, Chan, oneshot, recv_one }; // oneshot and recv_one are used in unit tests
 use extra::json::{ Object, ToJson, PrettyEncoder, String };//,Number, Json , List
 use bootstrap::{ Bootstrap };
@@ -31,19 +31,19 @@ use jah_spec::{ JahSpeced, JahSpec };
 use jah_args::{ JahArgs };
 use must::{ Must }; // used in unit tests
 
-//	FileAppendJSON receives a document through ParFitComm and appends it to the end of the file described in
+//	FileAppendSlice receives a binary slice through ParFitComm and appends it to the end of the file described in
 //	self.file_args. 
 //	The Fit then calculates and sends slice info or errors through a oneshot it received with the args  
 
-pub struct FileAppendJSON {
+pub struct FileAppendSlice {
 	file_args: ~Object
 }
 	
-impl Parfitable for FileAppendJSON {
+impl Parfitable for FileAppendSlice {
 
-	pub fn new( settings: ~Object ) -> ~FileAppendJSON {
+	pub fn new( settings: ~Object ) -> ~FileAppendSlice {
 	
-		~FileAppendJSON { file_args: settings }
+		~FileAppendSlice { file_args: settings }
 	}
 	
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
@@ -63,11 +63,11 @@ impl Parfitable for FileAppendJSON {
 	}
 }
 
-impl JahSpeced for FileAppendJSON {
+impl JahSpeced for FileAppendSlice {
 	
 	fn spec_keys_in( &self ) -> ~[~str] {
 	
-		~[~"uHSQ7daYUXqUUPSo"]
+		~[Bootstrap::spec_append_slice_key()]
 	}
 	
 	fn spec_keys_out( &self ) -> ~[~str] {
@@ -76,9 +76,9 @@ impl JahSpeced for FileAppendJSON {
 	}
 }
 
-impl FileAppendJSON {
+impl FileAppendSlice {
 	
-	//Implements a sequential writer for single Must controlled file
+	//Implements a sequential append only binary writer for single Must controlled file
 
 	priv fn go ( &self, in_port: Port<ParFitComm> ) -> Result<bool, ~FitErrs> {
 
@@ -88,13 +88,14 @@ impl FileAppendJSON {
     	//given that writes could be heavy. 
     			
     	let fit_key = self.fit_key();
-    	let ( file_path, file_num ) = { match self.get_startup_args() {
-    		Ok( ( file_path, file_num ) ) => {
-    			( file_path, file_num )
-    		}
-    		Err( fit_sys_errs ) => { 
-    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
-    		}
+    	let ( file_path, file_num ) = { 
+    		match self.get_startup_args() {
+	    		Ok( ( file_path, file_num ) ) => {
+	    			( file_path, file_num )
+	    		}
+	    		Err( fit_sys_errs ) => { 
+	    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
+	    		}
     		}};
     	println( file_path );
     	let path = Path( file_path );
@@ -130,40 +131,29 @@ impl FileAppendJSON {
 							break;
 						},
 			  			DoFit( args, home_chan ) => {
-							match spec.check_args( JahArgs::new( copy args.doc ) ) {
-								Ok( _ ) => { 
-									
-									//get current the ending position of the file
-									file_reader.seek( 0, SeekEnd );
-									let start_pos = file_reader.tell();
-									
-									//write the doc with all of the args
-									let mut encoder = PrettyEncoder(append_writer);
-				        			args.doc.encode(&mut encoder);						
-									append_writer.flush();
-									
-									//get the new ending position of the file
-									file_reader.seek( 0, SeekEnd );
-									
-									//calculate the slice info that will get stored with the documents
-									//master index
-							        let mut slice = ~HashMap::new();
-			        				slice.insert( ~"pos", start_pos.to_json() );
-								    slice.insert( ~"len", ( file_reader.tell() - start_pos ).to_json() );
-								    slice.insert( ~"fn", file_num.to_json() );
-									slice.encode(&mut encoder);
-									
-									//write the slice info to the file for redundancy purposes
-									append_writer.flush();
-									
-									//put the return args together and send them home
-									//let mut r_args = ~HashMap::new();
-									slice.insert( ~"spec_key", (Bootstrap::spec_file_slice_key()).to_json() );
-									home_chan.send( FitOk( ~FitArgs::from_doc( slice ) ) );
-								},
-								Err( errs ) => {
-									home_chan.send( FitErr( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"hiLXpCZ3nbya2Oea" )] + errs ) ) );
-								}
+			  				
+			  				if args.attach.len() == 0 {
+			  					home_chan.send( FitErr ( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) ); 				  				
+			  				} else {
+			  					//No need to check args because all fits have their args checked 
+				  				//according to spec prior to getting called and doc_slice_prep has already sliced the document
+								//get current the ending position of the file
+								file_reader.seek( 0, SeekEnd );
+								let start_pos = file_reader.tell();
+								
+								append_writer.write( args.attach );
+								append_writer.flush();
+								
+								//calculate the slice info that will get stored with the documents
+								//master index
+						        let mut slice = ~HashMap::new();
+		        				slice.insert( ~"pos", start_pos.to_json() );
+							    slice.insert( ~"len", args.attach.len().to_json() );
+							    slice.insert( ~"fn", file_num.to_json() );
+								//put the return args together and send them home
+								//let mut r_args = ~HashMap::new();
+								slice.insert( ~"spec_key", (Bootstrap::spec_file_slice_key()).to_json() );
+								home_chan.send( FitOk( ~FitArgs::from_doc( slice ) ) );
 							}
 			  			}
 					}	
@@ -204,7 +194,7 @@ impl FileAppendJSON {
 
 #[test]
 fn test_write_and_read() {
-	let fit = ~FileAppendJSON{ 
+	let fit = ~FileAppendSlice{ 
 		file_args: {
 			let mut startup_args = ~HashMap::new();
 			startup_args.insert( ~"path", String(~"test.json").to_json() );
@@ -229,27 +219,36 @@ fn test_write_and_read() {
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
-	args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
-	let rval = match { let ( p, c ) = oneshot();
-		fit_chan.send( DoFit( ~FitArgs::from_doc( copy args ), c ) );
-		recv_one( p )
+	args.insert( ~"spec_key", String( Bootstrap::spec_stored_doc_key() ).to_json() );
+	
+	let bw = @BytesWriter::new();
+	let mut encoder = PrettyEncoder( bw as @Writer );
+	args.to_json().encode( &mut encoder );				
+	bw.flush();	
+	let mut r_doc = ~HashMap::new();
+	r_doc.insert( ~"attach", String(~"doc").to_json() );
+	r_doc.insert( ~"spec_key", String( Bootstrap::spec_append_slice_key() ).to_json() );
+	
+	let rval = {
+		match { let ( p, c ) = oneshot();
+			fit_chan.send( DoFit( ~FitArgs{ doc: copy args, attach: copy *bw.bytes }, c ) );
+			recv_one( p )
 		} {
-		FitOk( rval ) => {
-			fit_chan.send ( ParFitCommEndChan );
-			rval
-		}
-		FitSysErr( fit_errs ) => {
-			println( fit_errs.to_str() );
-			fail!();
-		}
-		FitErr( fit_errs ) => {
-			println( fit_errs.to_str() );
-			fail!();
+			FitOk( rval ) => {
+				fit_chan.send ( ParFitCommEndChan );
+				rval
+			}
+			FitSysErr( fit_errs ) => {
+				println( fit_errs.to_str() );
+				fail!();
+			}
+			FitErr( fit_errs ) => {
+				println( fit_errs.to_str() );
+				fail!();
+			}
 		}};
 	let jah = JahArgs::new( rval.doc );
 	assert!( JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_file_slice_key() ) ).check_args( copy jah ).is_ok() );
 	let len = jah.get_float( ~"len" ).get().to_uint();
 	assert!( len == JahArgs::new( args ).to_str().len() );
 }
-
-	

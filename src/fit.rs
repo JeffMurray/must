@@ -14,9 +14,12 @@
 
 extern mod std;
 extern mod extra;
-use extra::json::{ Object, ToJson };
+extern mod bootstrap;
+use extra::json::{ Object, ToJson, String, List };
 use std::comm::{ ChanOne };
 use std::to_str::ToStr;
+use std::hashmap::HashMap;
+use bootstrap::{ Bootstrap };
 
 //	Functionally Isolated Task (Fit)
 // See Par.rs for more info about what a Fit is
@@ -77,6 +80,19 @@ impl FitErrs {
 	pub fn prepend_err( &self,  err: ~Object ) -> ~FitErrs {
 
 		~FitErrs { errs: ~[err] + self.errs }
+	}
+	
+	pub fn to_args( &self )-> ~Object {
+		
+		let mut err = ~HashMap::new();		
+		//	The main source of information about rule document that reported on arg_name
+		err.insert( ~"spec_key", String( Bootstrap::fit_errs_key() ).to_json() );
+		let mut errs = ~[];
+		for self.errs.iter().advance | err | {
+			errs.push( err.to_json() );
+		}
+		err.insert( ~"errs", List(errs).to_json() );
+		err
 	}
 }
 

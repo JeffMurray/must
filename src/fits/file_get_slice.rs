@@ -19,17 +19,18 @@ extern mod bootstrap;
 extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
-extern mod file_append_json;
-use std::io::{ SeekSet };
+extern mod file_append_slice;
+use extra::serialize::Encodable;
+use file_append_slice::{ FileAppendSlice };
+use std::io::{ SeekSet, BytesWriter };
 use std::comm::{ SharedChan, stream, Port, Chan, ChanOne, oneshot, recv_one };
-use extra::json::{ Object, ToJson, String }; 
+use extra::json::{ Object, ToJson, String, PrettyEncoder }; 
 use bootstrap::{ Bootstrap };
 use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr, FitErrs, FitArgs };  
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
 use must::{ Must };
-use file_append_json::{ FileAppendJSON };
 //	FileGetSlice receives a doc that identifies a slice of the file to retrieve and returns it as a binary attachment. 
 //	The Fit then calculates and sends slice info or errors through a oneshot it received with the args  
 
@@ -190,7 +191,7 @@ impl FileGetSlice {
 #[test]
 fn test_write_and_read() {
 	let slice_args = {
-		let fit = ~FileAppendJSON{ 
+		let fit = ~FileAppendSlice{ 
 			file_args: {
 				let mut startup_args = ~HashMap::new();
 				startup_args.insert( ~"path", String(~"test.json").to_json() );
@@ -215,11 +216,19 @@ fn test_write_and_read() {
 		args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
 		args.insert( ~"must", Must::new().to_json() );	
 		args.insert( ~"doc", doc.to_json() );
-		args.insert( ~"spec_key", String(~"uHSQ7daYUXqUUPSo").to_json() );
+		args.insert( ~"spec_key", String( Bootstrap::spec_stored_doc_key() ).to_json() );
+		
+		let mut r_doc = ~HashMap::new();
+		r_doc.insert( ~"attach", String(~"doc").to_json() );
+		r_doc.insert( ~"spec_key", String( Bootstrap::spec_append_slice_key() ).to_json() );
+		let bw = @BytesWriter::new();
+		let mut encoder = PrettyEncoder( bw as @Writer );
+		args.to_json().encode( &mut encoder );				
+		bw.flush();						
 		let rval = {
 			match { let ( p, c ) = oneshot();
-					fit_chan.send( DoFit( ~FitArgs::from_doc( copy args ), c ) );
-					recv_one( p )
+				fit_chan.send( DoFit(  ~FitArgs{ doc: r_doc, attach: copy *bw.bytes }, c ) );
+				recv_one( p )
 			} {
 				FitOk( rval ) => {
 					fit_chan.send ( ParFitCommEndChan );
@@ -288,7 +297,7 @@ fn test_write_and_read() {
 	
 	match extra::json::from_str( rval.attach.to_str() ).get() {
 		Object( val ) => {
-			assert!( JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_doc_key() ) ).check_args( JahArgs::new( val) ).is_ok() );
+			assert!( JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_stored_doc_key() ) ).check_args( JahArgs::new( val) ).is_ok() );
 		} _ => {}
 	}
 }
