@@ -8,7 +8,7 @@
 
 //	rustc --lib bootstrap.rs -L .
 
-#[link(name = "bootstrap", vers = "1.0")];
+#[link(name = "bootstrap", vers = "0.0")];
 
 extern mod std;
 extern mod extra;

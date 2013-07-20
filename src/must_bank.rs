@@ -31,7 +31,7 @@ use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan
 use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
 use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release, GetAttach };
-use extra::json::{ Object, String, ToJson, to_pretty_str };
+use extra::json::{ Object, String, ToJson }; // , to_pretty_str
 use bootstrap::{ Bootstrap };
 use std::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
 use std::hashmap::HashMap;
@@ -100,7 +100,7 @@ impl MustBank {
 						}
 					}					
 				}
-				Err( errs ) => {
+				Err( _ ) => {
 					fail!(); //yuck here for now :( I'm guessing this is rare but leaving warning to keep the issue open in my mind
 				}
 			}			
@@ -181,9 +181,9 @@ impl Transcriptor {
 						None => { std::io::println( "no spec key found in must_bank.rs" ); break; }
 					}};
 				let args = { 
-					match Transcriptor::speced_arg_excerpt( Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
+					match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
 						Ok( args ) => { args }													  //Leaving warning for now	
-						Err( err ) => { std::io::println( "speced_arg_excerpt error" ); break; }  //Reporting this error will require the indexes be up and running
+						Err( _ ) => { std::io::println( "speced_arg_excerpt error" ); break; }  //Reporting this error will require the indexes be up and running
 					}};																			  //Transcribing this can get tied in with the rest of the reporting
 				// get the Par chan and send args
 				let fo: FitOutcome = {
@@ -202,11 +202,9 @@ impl Transcriptor {
 				
 				match copy fo.outcome {
 					FitOk( rval ) => {
-						let jah = JahArgs::new( copy rval.doc );
-						match jah.get_str( ~"spec_key" ) {
+						match rval.doc.get_str( ~"spec_key" ) {
 							Ok( key ) => {
-								let spec = ~JahSpec::new( Bootstrap::find_spec( key ) );
-								match spec.check_args( jah ) {
+								match JahSpec::check_args( &Bootstrap::find_spec( key ), &rval.doc ) {
 									Ok( _ ) => {
 										arg_bank_admin_chan.send( MergeArgs( rval ) );
 										rib_chan.send( NextOk );					
@@ -272,12 +270,11 @@ impl Transcriptor {
 	//  adherence to the expected spec. If everything passes, Ok( args ) is returned, 
 	//  otherwise descriptive error messages are returned, according to spec ;).
 	
-	priv fn speced_arg_excerpt( spec: ~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~FitArgs, ~FitErrs> {
+	priv fn speced_arg_excerpt( spec: &~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~FitArgs, ~FitErrs> {
 		
-		let jah_spec = JahSpec::new( spec );
 		let mut rval = ~HashMap::new();
 		let keys = { 
-			match jah_spec.allowed_keys() {
+			match JahSpec::allowed_keys( spec ) {
 				Ok( keys ) => { keys } 
 				Err( err ) => { return Err( FitErrs::from_objects( err ) ) }
 				}};
@@ -292,10 +289,9 @@ impl Transcriptor {
 				None => {}  // leaving the ramifications of this missing arg to the spec check	
 			}
 		}
-		let jah = JahArgs::new( copy rval );
-		match jah_spec.check_args( copy jah  ) {
+		match JahSpec::check_args( spec, &rval  ) {
 			Ok( _ ) => {
-				match jah.get_str(~"attach") {
+				match rval.get_str(~"attach") {
 					Ok( attached_name ) => {
 						let ( p, c ) = oneshot();
 						arg_bank_chan.send( GetAttach( copy attached_name, c ) );

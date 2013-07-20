@@ -11,7 +11,7 @@
 //	./must-tests
 //	See must_test.rs for another example of how to use a Must.
 
-#[link(name = "must", vers = "1.0")];
+#[link(name = "must", vers = "0.0")];
 extern mod std;
 extern mod extra;
 extern mod bootstrap;
@@ -88,7 +88,7 @@ impl Must{
  	
  		match must {
  			Object( obj ) => {
- 				Must::from_obj( copy *obj )
+ 				Must::from_obj( &obj )
  			}
 	 		_ => {
 	 			Err( ~[Bootstrap::spec_rule_error(Bootstrap::arg_rule_key_arg_must_be_object(), ~"must", Bootstrap::spec_must_key(), ~"Q7wOoPiMNJ6xgqL1")] )
@@ -98,10 +98,9 @@ impl Must{
 	
 	//Takes an Object and converts it to a Must
 
-	pub fn from_obj( obj: Object ) -> Result<Must, ~[~Object]> {
-		
-		let must_args = JahArgs::new( ~obj ) ;
-		let key = { match must_args.get_str( ~"key" ) {
+	pub fn from_obj( obj: &~Object ) -> Result<Must, ~[~Object]> {
+	
+		let key = { match obj.get_str( ~"key" ) {
 			Ok( key_val ) => { key_val }
 			Err( err ) => {
 				match err {
@@ -114,7 +113,7 @@ impl Must{
 				}	
 			}
 		}};
-		let sec = { match must_args.get_float( ~"sec" ) {
+		let sec = { match obj.get_float( ~"sec" ) {
 			Ok( sec_val ) => { sec_val }
 			Err( err ) => {
 				match err {
@@ -127,7 +126,7 @@ impl Must{
 				}	
 			}
 		}};
-		let nsec = { match must_args.get_float( ~"nsec" ) {
+		let nsec = { match obj.get_float( ~"nsec" ) {
 			Ok( nsec_val ) => { nsec_val }
 			Err( err ) => {
 				match err {

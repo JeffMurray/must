@@ -99,9 +99,9 @@ impl FileAppendSlice {
     		}};
     	println( file_path );
     	let path = Path( file_path );
-    	let spec = JahSpec::new( Bootstrap::find_spec( ~"uHSQ7daYUXqUUPSo" ) );
-		if spec.spec_key() !=  ~"uHSQ7daYUXqUUPSo" {
-			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"wi8D6MEqdXkORYtX") ) );
+    	let spec = Bootstrap::find_spec( Bootstrap::spec_add_doc_key() );
+		if JahSpec::spec_key(&spec) != Bootstrap::spec_add_doc_key()  {
+			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"cSCDVSNDFpLOSwDz") ) );
 		}				
 		do spawn {	
 			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
@@ -177,17 +177,15 @@ impl FileAppendSlice {
 	
 	fn get_startup_args( &self ) -> Result<( ~str, uint ), ~[~Object] > {
 	
-		let args = JahArgs::new( copy self.file_args );
-		let spec = JahSpec::new( self.arg_out() );
-		match spec.check_args( copy args ) {
+		match JahSpec::check_args( &self.arg_out(), &self.file_args ) {
 			Ok( _ ) => { }
 			Err( errs ) => {
 				return Err( ~[Bootstrap::reply_error_trace_info(~"file_append_json.rs", ~"rx9vMuM19wlGvMm2" )] + errs );
 			}
 		}
 		// Since args has passed a spec check, I am pretty confident using .get()		
-		let file_path = copy args.get_str( ~"path" ).get();
-		let file_num = args.get_float( ~"num" ).get().to_uint();
+		let file_path = self.file_args.get_str( ~"path" ).get();
+		let file_num = self.file_args.get_float( ~"num" ).get().to_uint();
 		Ok( ( file_path, file_num ) )
 	}
 }
@@ -247,8 +245,7 @@ fn test_write_and_read() {
 				fail!();
 			}
 		}};
-	let jah = JahArgs::new( rval.doc );
-	assert!( JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_file_slice_key() ) ).check_args( copy jah ).is_ok() );
-	let len = jah.get_float( ~"len" ).get().to_uint();
-	assert!( len == JahArgs::new( args ).to_str().len() );
+	assert!( JahSpec::check_args( &Bootstrap::find_spec( Bootstrap::spec_file_slice_key() ),  &rval.doc ).is_ok() );
+	let len = rval.doc.get_float( ~"len" ).get().to_uint();
+	assert!( len == bw.bytes.len() );
 }

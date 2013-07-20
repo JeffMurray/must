@@ -72,8 +72,8 @@ impl ErrFit {
 			loop {
 				match par_port.recv() {
 		  			DoFit( args, home_chan ) => {
-		  				println( "E R R O R" );
-		  				println( JahArgs::new( args.doc ).to_str() );
+		  				println( "<-Error Fit->" );
+		  				println( args.doc.to_pretty_str() );
 		  				let mut r_args = ~HashMap::new();
 		  				r_args.insert(  ~"spec_key", String(~"er5OWig71VG9oNjK").to_json() );
 		 				home_chan.send( FitOk( ~FitArgs::from_doc( copy r_args ) ) );

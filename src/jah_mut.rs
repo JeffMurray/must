@@ -104,15 +104,14 @@ impl JahMut {
 									map = new_map;
 								}
 								MergeArgs( args ) => {
-									let jah = JahArgs::new( copy args.doc );
-									let keys = jah.arg_keys();
+									let keys = args.doc.arg_keys();
 									for keys.iter().advance | key | {
 										if map.contains_key( key ) {
 											map.remove( key );
 										}
-										map.insert( copy *key, jah.get_json_val( copy *key ).to_json() );	
+										map.insert( copy *key, args.doc.get_json_val( copy *key ).to_json() );	
 									}
-									match jah.get_str( ~"attach" ) {
+									match args.doc.get_str( ~"attach" ) {
 										Ok( atch_name ) => {
 											if attached.contains_key( &atch_name ) {
 												attached.remove( &atch_name );

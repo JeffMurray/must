@@ -20,16 +20,16 @@ extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
 extern mod par;
-use std::io::{ ReaderUtil, BytesWriter, Writer, WriterUtil };
+use std::io::{ BytesWriter, Writer };
 use extra::serialize::Encodable;
-use std::str::{ Str, from_bytes_owned };
-use par::{ Par, ParTrans, ParCommEndChan }; // , ParInComm
+use std::str::{ from_bytes_owned };
+use par::{ Par, ParTrans, ParCommEndChan }; // Used in unit tests
 use std::comm::{ stream, Port, Chan, ChanOne, SharedChan, oneshot }; // oneshot and recv_one are used in unit tests
-use extra::json::{ Object, ToJson, String, PrettyEncoder, Json, to_pretty_str };
+use extra::json::{ Object, ToJson, String, PrettyEncoder }; //, to_pretty_str, Json
 use bootstrap::{ Bootstrap };
 //use extra::serialize::Encodable;
 use std::hashmap::HashMap;
-use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitArgs, FitErrs, FitSysErr }; //, FitComm
+use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitArgs, FitErrs, FitSysErr }; // FitSysErr is used in unit test
 use jah_spec::{ JahSpeced, JahSpec }; 
 use jah_args::{ JahArgs };
 use must::{ Must }; // used in unit tests
@@ -86,32 +86,30 @@ impl DocSlicePrep {
 			let parfit_comm : ParFitComm =  p.recv();
 			match parfit_comm {
 				DoFit( fit_args, home_chan ) => {
-					let jah = JahArgs::new( copy fit_args.doc );
 					let mut doc = fit_args.doc;
 					//we are guaranteed here to have the first layer of properties checked
 					//so I am calling get()
-					let mut continue = true;
 					let new_must = {
-						match jah.get_str(~"spec_key").get() {
+						match doc.get_str(~"spec_key").get() {
 							~"uHSQ7daYUXqUUPSo" => { //add
 								Ok( Must::new() )
 							}
 							~"CJeCZR6b9t6jj46S" => { //edit
 								//Only the first layer of properties are checked by the transcriptor at the moment
 								//so I am checking the must spec
-								match JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_must_key() ) ).check_args( copy jah ) {
+								match JahSpec::check_args( &Bootstrap::find_spec( Bootstrap::spec_must_key() ), &doc ) {
 									Err( errs ) => {
 										Err( FitErrs::from_objects( errs ) )
 									}
 									Ok( _ ) => {
 										doc.remove(&~"must");
 										//With a checked spec...
-										Ok( Must::stamped( jah.get_str( ~"key" ).get() ) )								
+										Ok( Must::stamped( doc.get_str( ~"key" ).get() ) )								
 									}
 								}
 							}
 							_ => {
-								Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_not_known_to_fit(), jah.get_str(~"spec_key").get(), ~"aZWkaywgi34NMiDk", ~"doc_slice_prep.rs") ) )
+								Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_not_known_to_fit(), doc.get_str(~"spec_key").get(), ~"aZWkaywgi34NMiDk", ~"doc_slice_prep.rs") ) )
 							}
 						}};
 					match new_must {
@@ -218,12 +216,10 @@ fn append_doc() {
 					Ok( val ) => {
 						match val {
 							Object( doc ) => {
-								let jah = JahArgs::new( copy doc );
-								println( jah.to_str() );
-								match JahSpec::new( Bootstrap::find_spec( Bootstrap::spec_stored_doc_key() ) ).check_args( jah ) {
+								match JahSpec::check_args( &Bootstrap::find_spec( Bootstrap::spec_stored_doc_key() ), &doc ) {
 									Err( errs ) => {
 										for errs.iter().advance | err | {
-											println( to_pretty_str( &err.to_json() ) );
+											println( err.to_pretty_str() );
 										}
 										
 										fail!();

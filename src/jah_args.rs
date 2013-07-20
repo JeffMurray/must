@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
  
- #[link(name = "jah_args", vers = "1.0")];
+ #[link(name = "jah_args", vers = "0.0")];
  
 //	rustc --lib jah_args.rs -L .
 //	rustc jah_args.rs --test -o jah_args-tests -L .
@@ -17,27 +17,26 @@ extern mod extra;
 use extra::json::{Object,String,Number,Json,List,Boolean, ToJson};//,Null,ToJson
 use std::hashmap::HashMap;
 use std::option::{ Some, None };
-use std::to_str::ToStr;
-
-// See jah_spec.rs for a description of JahArgs
- 
-struct JahArgs {
-
-	priv args: ~HashMap<~str, Json>
-}
 
 enum GetArgErrorType {
 	MissingKey,
 	WrongDataType
 }
 
-impl JahArgs {
+trait JahArgs {
+	pub fn get_str( &self, arg_name: ~str ) -> Result<~str, GetArgErrorType>;
+	pub fn get_json_val( &self, arg_name: ~str ) -> Option<Json>;
+	pub fn get_map( &self, arg_name: ~str ) -> Result<~Object, GetArgErrorType>;
+	pub fn get_list( &self, arg_name: ~str ) -> Result<~List, GetArgErrorType>;
+	pub fn get_float( &self, arg_name: ~str ) -> Result<float, GetArgErrorType>;
+	pub fn get_bool( &self, arg_name: ~str ) -> Result<bool, GetArgErrorType>;
+	pub fn has_arg( &self, key: &~str ) -> bool;
+	pub fn arg_count( &self) -> uint;
+	pub fn arg_keys( &self ) -> ~[~str];
+	pub fn to_pretty_str( &self ) -> ~str;
+}
 
-	pub fn new( args: ~HashMap<~str, Json> ) -> ~JahArgs {
-	
-		~JahArgs { args: args }
-	}
-	//	Gets the arg as a ~str
+impl JahArgs for ~HashMap<~str, Json> {
 
 	pub fn get_str( &self, arg_name: ~str ) -> Result<~str, GetArgErrorType> {
 
@@ -58,8 +57,6 @@ impl JahArgs {
 		}
 	}
 	
-	//	Gets the arg as a map
-	
 	pub fn get_map( &self, arg_name: ~str ) -> Result<~Object, GetArgErrorType> {
 	
 		match self.get_json_val( arg_name ) {
@@ -79,8 +76,6 @@ impl JahArgs {
 		}
 	}
 	
-	//	Gets the arg as a list
-	
 	pub fn get_list( &self, arg_name: ~str ) -> Result<~List, GetArgErrorType> {
 	
 		match self.get_json_val( arg_name ) {
@@ -98,9 +93,7 @@ impl JahArgs {
 				Err( MissingKey )
 			}
 		}
-	}
-	
-	//	Gets the arg as a float
+	}	
 	
 	pub fn get_float( &self, arg_name: ~str ) -> Result<float, GetArgErrorType> {
 	
@@ -120,8 +113,18 @@ impl JahArgs {
 			}
 		}
 	}
+		
+	pub fn get_json_val( &self, arg_name: ~str ) -> Option<Json> {
 	
-	//	Gets the arg as a bool
+		match self.find( &arg_name ) {
+			Some( val ) => {
+				Some( copy *val )
+			}
+			None => {
+				None
+			}
+		}
+	}
 	
 	pub fn get_bool( &self, arg_name: ~str ) -> Result<bool, GetArgErrorType> {
 	
@@ -141,51 +144,29 @@ impl JahArgs {
 			}
 		}
 	}
-		
+	
 	pub fn has_arg( &self, key: &~str ) -> bool {
 	
-		self.args.contains_key(key) 
+		self.contains_key(key) 
 	}
 	
 	pub fn arg_count( &self) -> uint {
 		
-		self.args.len()
+		self.len()
 	}
 	
-	//	Gets the arg as a Json val
-	
-	pub fn get_json_val( &self, arg_name: ~str ) -> Option<Json> {
-	
-		match self.args.find( &arg_name ) {
-			Some( val ) => {
-				Some( copy *val )
-			}
-			None => {
-				None
-			}
-		}
-	}
-	
-	//	Returns a list of all the keys in the argument list
-		
 	pub fn arg_keys( &self ) -> ~[ ~str ] {
 		
 		let mut keys = ~[];
-		for self.args.iter().advance |( &key, _ )| {
+		for self.iter().advance |( &key, _ )| {
 			keys.push( copy key );
 		}
 		keys
 	}
-}
-
-//	Implements to_str()
-
-impl ToStr for JahArgs {
-
-	fn to_str(&self) -> ~str {
+	pub fn to_pretty_str( &self ) -> ~str {
 	
-		extra::json::to_pretty_str(&(self.args.to_json()))		   	
-	} 
+		extra::json::to_pretty_str(&(self.to_json()))
+	}
 }
 
 
@@ -194,8 +175,7 @@ fn test_has_arg() {
 
 	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
-	let args = JahArgs::new( map );
-	assert!( args.has_arg(&~"test_arg") && !args.has_arg(&~"missing_arg") );	
+	assert!( map.has_arg(&~"test_arg") && !map.has_arg(&~"missing_arg") );	
 }
 
 #[test]
@@ -203,8 +183,7 @@ fn test_arg_count() {
 
 	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
-	let args = JahArgs::new( map );
-	assert!( args.arg_count() == 1u );	
+	assert!( map.arg_count() == 1u );	
 }
 
 #[test]
@@ -212,8 +191,7 @@ fn test_json_arg() {
 
 	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg", 1f.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_json_val( ~"test_arg" ) {
+	match map.get_json_val( ~"test_arg" ) {
 		Some( _ ) => {
 			assert!( true );
 		}
@@ -222,7 +200,7 @@ fn test_json_arg() {
 		}
 	}
 	
-	match args.get_json_val( ~"test_missing_arg" ) {
+	match map.get_json_val( ~"test_missing_arg" ) {
 		Some( _ ) => {
 			fail!();
 		}
@@ -238,8 +216,7 @@ fn test_arg_keys() {
 	let mut map = ~HashMap::new();
 	map.insert( ~"test_arg_1", 1f.to_json() );
 	map.insert( ~"test_arg_2", 2f.to_json() );
-	let args = JahArgs::new( map );
-	let arg_keys = args.arg_keys();
+	let arg_keys = map.arg_keys();
 	assert!( arg_keys.len() == 2u );
 	for arg_keys.iter().advance | key | {
 		assert!( key == &~"test_arg_1" ||key == &~"test_arg_2" );
@@ -253,8 +230,7 @@ fn test_string_arg() {
 	let str = ~"hello world";
 	map.insert( ~"test_str", str.to_json() );
 	map.insert( ~"test_not_str", 100f.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_str( ~"test_str" ) {
+	match map.get_str( ~"test_str" ) {
 		Ok( val ) => {
 			assert!( "hello world" == val );
 		}
@@ -263,7 +239,7 @@ fn test_string_arg() {
 		}
 	}
 	
-	match args.get_str( ~"test_not_str" ) {
+	match map.get_str( ~"test_not_str" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -279,7 +255,7 @@ fn test_string_arg() {
 			}
 		}
 	}	
-	match args.get_str( ~"test_not_there" ) {
+	match map.get_str( ~"test_not_there" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -303,8 +279,7 @@ fn test_number_arg() {
 	let flt = 100f;
 	map.insert( ~"test_float", flt.to_json() );
 	map.insert( ~"test_not_float", true.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_float( ~"test_float" ) {
+	match map.get_float( ~"test_float" ) {
 		Ok( val ) => {
 			assert!( 100f == val );
 		}
@@ -312,7 +287,7 @@ fn test_number_arg() {
 			fail!();
 		}
 	}
-	match args.get_float( ~"test_not_float" ) {
+	match map.get_float( ~"test_not_float" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -328,7 +303,7 @@ fn test_number_arg() {
 			}
 		}
 	}	
-	match args.get_float( ~"test_not_there" ) {
+	match map.get_float( ~"test_not_there" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -353,11 +328,10 @@ fn test_object_arg() {
 	obj.insert( ~"test_key", true.to_json() );
 	map.insert( ~"test_object", obj.to_json() );
 	map.insert( ~"test_not_object", true.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_map( ~"test_object" ) {
+	match map.get_map( ~"test_object" ) {
 		Ok( val ) => {
 			//make sure test_key is the same
-			match JahArgs::new( copy val ).get_bool( ~"test_key" ) {
+			match val.get_bool( ~"test_key" ) {
 				Ok( bval ) => {
 					assert!( bval );
 				}
@@ -370,7 +344,7 @@ fn test_object_arg() {
 			fail!();
 		}
 	}
-	match args.get_map ( ~"test_not_object" ) {
+	match map.get_map ( ~"test_not_object" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -386,7 +360,7 @@ fn test_object_arg() {
 			}
 		}
 	}	
-	match args.get_map( ~"test_not_there" ) {
+	match map.get_map( ~"test_not_there" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -410,8 +384,7 @@ fn test_boolean_arg() {
 	map.insert( ~"test_true", true.to_json() );
 	map.insert( ~"test_false", false.to_json() );
 	map.insert( ~"test_not_bool", 0f.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_bool( ~"test_true" ) {
+	match map.get_bool( ~"test_true" ) {
 		Ok( val ) => {
 			assert!( val );
 		}
@@ -419,7 +392,7 @@ fn test_boolean_arg() {
 			fail!();
 		}
 	}
-	match args.get_bool( ~"test_false" ) {
+	match map.get_bool( ~"test_false" ) {
 		Ok( val ) => {
 			assert!( !val );
 		}
@@ -427,7 +400,7 @@ fn test_boolean_arg() {
 			fail!();
 		}
 	}
-	match args.get_bool( ~"test_not_bool" ) {
+	match map.get_bool( ~"test_not_bool" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -443,7 +416,7 @@ fn test_boolean_arg() {
 			}
 		}
 	}	
-	match args.get_bool( ~"test_not_there" ) {
+	match map.get_bool( ~"test_not_there" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -467,8 +440,7 @@ fn test_list_arg() {
 	let list = ~[ 1f.to_json(), false.to_json() ];
 	map.insert( ~"test_list", list.to_json() );
 	map.insert( ~"test_not_list", true.to_json() );
-	let args = JahArgs::new( map );
-	match args.get_list( ~"test_list" ) {
+	match map.get_list( ~"test_list" ) {
 		Ok( val ) => {
 			match val[0] {
 				Number( f ) => {
@@ -484,7 +456,7 @@ fn test_list_arg() {
 			fail!();
 		}
 	}
-	match args.get_list ( ~"test_not_list" ) {
+	match map.get_list ( ~"test_not_list" ) {
 		Ok( _ ) => {
 			fail!();
 		}
@@ -500,7 +472,7 @@ fn test_list_arg() {
 			}
 		}
 	}	
-	match args.get_list( ~"test_not_there" ) {
+	match map.get_list( ~"test_not_there" ) {
 		Ok( _ ) => {
 			fail!();
 		}
