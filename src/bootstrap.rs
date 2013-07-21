@@ -658,4 +658,75 @@ impl Bootstrap {
 		spec.insert( ~"spec_key", String( Bootstrap::fit_errs_key() ).to_json() );
 		spec
 	}	
+	
+	// A gallery holds holds holds either a tunnel ore a chamber for each key that it holds.
+ 	pub fn lurker_gallery_spec_key() -> ~str {
+	 	
+	 	~"uf7heb1lYvudl8GV"
+	}
+		
+ 	pub fn lurker_gallery_spec() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"keys", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::lurker_gallery_spec_key() ).to_json() );
+		spec
+	}	
+	
+	// A tunnel leads to the next gallery
+ 	pub fn lurker_tunnel_spec_key() -> ~str {
+	 	
+	 	~"lh7BzwQUT7C5qkcK"
+	}
+		
+ 	pub fn lurker_tunnel_spec() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::lurker_tunnel_spec_key() ).to_json() );
+		spec
+	}	
+	
+	
+	// A chamber is where lurker keys live
+ 	pub fn lurker_chamber_spec_key() -> ~str {
+	 	
+	 	~"CUdcs4n0WDLkcLMj"
+	}
+		
+ 	pub fn lurker_chamber_spec() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"last_key", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"last_slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"rev_count", List( ~[Bootstrap::arg_rule_num_must_be_number().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"rev_slice", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::lurker_chamber_spec_key() ).to_json() );
+		spec
+	}
+	// A chamber is where lurker keys live
+ 	pub fn lurker_revision_hord_spec_key() -> ~str {
+	 	
+	 	~"HgcjZSW4l1V7Cuu1"
+	}
+		
+ 	pub fn lurker_revision_hord_spec() -> ~Object {
+ 	
+ 		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"revs", List( ~[Bootstrap::arg_rule_arg_must_be_a_list().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		let mut spec = ~HashMap::new();
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::lurker_revision_hord_spec_key() ).to_json() );
+		spec
+	}	
 }
