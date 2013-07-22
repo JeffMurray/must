@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "jah_spec", vers = "1.0")];
+#[link(name = "jah_spec", vers = "0.0")];
  
 //	rustc --lib jah_spec.rs -L .
 //	rustc jah_spec.rs --test -o jah_spec-tests -L .

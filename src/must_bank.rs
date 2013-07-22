@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
  
- #[link(name = "must_bank", vers = "1.0")];  
+ #[link(name = "must_bank", vers = "0.0")];  
  
 //	rustc --lib must_bank.rs -L . -L fits
 //	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
@@ -14,7 +14,6 @@
 
 extern mod std;
 extern mod extra;
-extern mod jah_mut;
 extern mod jah_spec;
 extern mod jah_args;
 extern mod par;
@@ -29,9 +28,8 @@ use par::{ FitOutcome, ParTrans };
 use fit::{ FitOk, FitErr, FitSysErr, FitErrs, FitArgs };
 use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr, ParTsRelease };
 use must::{ Must };
-use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr };
-use jah_mut::{ JahMutReq, GetStr, GetJson, JahMut, LoadMap, MergeArgs, Release, GetAttach };
-use extra::json::{ Object, String, ToJson }; // , to_pretty_str
+use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr, GetArgStr, LogicInComm };
+use extra::json::{ Object, String, ToJson, Json }; // , to_pretty_str
 use bootstrap::{ Bootstrap };
 use std::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
 use std::hashmap::HashMap;
@@ -71,7 +69,6 @@ impl MustBank {
 							} else {
 								( port.peek(), goodby_port.peek() )
 							}};
-						
 						if recv_trans {
 							match port.recv() {
 								MBTranscript( args, chan_one ) => {
@@ -156,165 +153,217 @@ impl Transcriptor {
 	fn connect( kickoff_strand_key: ~str ) -> Chan<((~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>))> {
 	
 		let ( start_port, start_chan ) = stream();
-		
 		do spawn {
 			let kickoff_strand_key = copy kickoff_strand_key;	
 			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
-			let ( arg_bank_user_chan, arg_bank_admin_chan ) = JahMut::connect();  //  <-- the arg bank
-			let arg_bank_sh_chan = SharedChan::new( arg_bank_user_chan );
-			arg_bank_admin_chan.send( LoadMap( copy args ) );
-			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key, arg_bank_sh_chan.clone() );
+			// These HashMaps are how state is maintained as an outside document request is shuttled across fits.  I am explicitly typing them for readability
+			let mut arg_bank: ~HashMap<~str, Json> = args; 
+			let mut attached: ~HashMap<~str, ~[u8]>  = ~HashMap::new();
+			let mut fit_state: ~HashMap<~str, Json>  = ~HashMap::new();
+			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key );
 			loop {
-				let reg_key = { 
-					match rib_port.recv() {
-						DoFit( key ) => { key }
-						LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json())));break; } //  <- temp band-aid, pure logic errors should be pretty rare 
-						EndOfStrand	=> { break; }
-					}};
-				let spec_key = { //get the latest spec that was loaded in the arg bank
-					match { let ( p, c ) = oneshot();
-						arg_bank_sh_chan.clone().send( GetStr( ~"spec_key", c ) );
-						recv_one( p ) }
-					{ 	Some( spec_key ) => { spec_key }
-						None => { std::io::println( "no spec key found in must_bank.rs" ); break; }
-					}};
-				let args = { 
-					match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank_sh_chan.clone() ) {
-						Ok( args ) => { args }													  //Leaving warning for now	
-						Err( _ ) => { std::io::println( "speced_arg_excerpt error" ); break; }  //Reporting this error will require the indexes be up and running
-					}};																			  //Transcribing this can get tied in with the rest of the reporting
-				// get the Par chan and send args
-				let fo: FitOutcome = {
-					match { let ( p, c ) = oneshot();
-						parts_chan.send( GetParTChan( reg_key, c ) ); // ChanOne<ParTOutComm>
-						recv_one( p )
-						} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
-								let ( p2, c2 ) = oneshot();
-								part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
-								recv_one( p2 )
-							} 
-							ParTErr( err ) => { std::io::println( err.to_str() ); break; }
-					}};
-				// Record the fit performance once the indexing system is up and running
-				// update the arg_bank
-				
-				match copy fo.outcome {
-					FitOk( rval ) => {
-						match rval.doc.get_str( ~"spec_key" ) {
-							Ok( key ) => {
-								match JahSpec::check_args( &Bootstrap::find_spec( key ), &rval.doc ) {
-									Ok( _ ) => {
-										arg_bank_admin_chan.send( MergeArgs( rval ) );
-										rib_chan.send( NextOk );					
-									}
-									Err( errs ) => {
-										let fit_errs = FitErrs::from_objects( errs);
-										//println( to_pretty_str( &Object( copy doc ).to_json() ) );
-										arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( fit_errs.to_args() ) ) );
-										rib_chan.send( NextErr );									
-									}
-								}
+				match rib_port.recv() {
+					GetArgStr( key, chan ) => {
+						match arg_bank.get_str( key ) { 
+							Ok( val ) => {
+								chan.send( Some( val ) );
 							}
-							Err( err_type ) => {
-								let errs = {
-									match err_type {
-										MissingKey => {
-											FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"must_bank.rs" ) )
-										}
-										WrongDataType => {
-											FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"must_bank.rs" ) )
-										}
-									}};
-								arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( errs.to_args() ) ) );
-								rib_chan.send( NextErr );														
+							Err( _ ) => {
+								chan.send( None );
 							}
 						}
 					}
-					FitErr( rval ) => {
-						let doc = rval.to_args();
-						//println( to_pretty_str( &Object( copy doc ).to_json() ) );
-						arg_bank_admin_chan.send( MergeArgs( ~FitArgs::from_doc( doc ) ) );
-						rib_chan.send( NextErr );
+					LogicErr( err ) => { //an important function of the transcriptor is to dutifully report and log these errors, but indexing needs to be up and running to do that
+						std::io::println( extra::json::to_pretty_str(&(err.to_json())));break; //  <- temp band-aid
+					} 
+					EndOfStrand	=> { 
+						break; 
 					}
-					FitSysErr( err ) => {
-						println( err.to_str() );
-						break;
+					DoFit( reg_key ) => { 
+						match Transcriptor::do_fit( reg_key, &mut arg_bank , &mut attached, &mut fit_state, parts_chan.clone() ) {
+							Ok( signal ) => {
+								rib_chan.send( signal );
+							}
+							Err( errs ) => {
+								//The fid did not even get called if we are here
+								println( errs.to_str() );  
+								break;
+							}
+						}
 					}
 				}
 			}
-			arg_bank_admin_chan.send( Release );
 			goodby_chan.send(1i);	
 		}
 		start_chan
 	}
+	
+	priv fn do_fit( reg_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, fit_state: &mut ~Object, parts_chan: SharedChan<ParTInComm> ) -> Result<LogicInComm, ~FitErrs>  {
+	
+		let spec_key = { //get the latest spec that was loaded in the arg bank
+			match arg_bank.get_str( ~"spec_key" ) {
+				Ok( spec_key ) => { spec_key }
+				Err( err ) => {
+					match err {
+						MissingKey => {
+							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"0vKBkZjRUMVei1QX", ~"must_bank.rs" ) ) )
+						}
+						WrongDataType => {
+							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"QyKtHrBE8GXB0WEf", ~"must_bank.rs" ) ) )
+						}
+					}
+				} 
+			}};
+		let args = { 
+			match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank, attached, fit_state, copy reg_key ) {
+				Ok( args ) => { args }													  
+				Err( errs ) => {
+					return Err( errs.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
+				}
+			}};										
+		// get the Par chan and send args
+		let fo: FitOutcome = {
+			match { let ( p, c ) = oneshot();
+				parts_chan.send( GetParTChan( copy reg_key, c ) ); // ChanOne<ParTOutComm>
+				recv_one( p )
+				} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
+						let ( p2, c2 ) = oneshot();
+						part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
+						recv_one( p2 )
+					} 
+					ParTErr( err ) => {
+						return Err( err.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
+					}
+			}};
+		// Record the fit performance once the indexing system is up and running
+		// update the arg_bank
+		match copy fo.outcome {
+			FitOk( rval ) => {
+				match rval.doc.get_str( ~"spec_key" ) {
+					Ok( key ) => {
+						match JahSpec::check_args( &Bootstrap::find_spec( key ), &rval.doc ) {
+							Ok( _ ) => {
+								Transcriptor::merge_args( &rval, reg_key, arg_bank, attached, fit_state );
+								Ok( NextOk )					
+							}
+							Err( errs ) => {
+								let fit_errs = FitErrs::from_objects( errs);
+								Transcriptor::merge_args( &~FitArgs::from_doc( fit_errs.to_args() ), reg_key, arg_bank, attached, fit_state );
+								Ok( NextOk )								
+							}
+						}
+					}
+					Err( err_type ) => {
+						let errs = {
+							match err_type {
+								MissingKey => {
+									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"must_bank.rs" ) )
+								}
+								WrongDataType => {
+									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"must_bank.rs" ) )
+								}
+							}};
+						Transcriptor::merge_args( &~FitArgs::from_doc( errs.to_args() ), reg_key, arg_bank, attached, fit_state );
+						Ok( NextErr )														
+					}
+				}
+			}
+			FitErr( rval ) => {
+				let doc = rval.to_args();
+				//println( to_pretty_str( &Object( copy doc ).to_json() ) );
+				Transcriptor::merge_args( &~FitArgs::from_doc( doc ), reg_key, arg_bank, attached, fit_state );
+				Ok( NextErr )
+			}
+			FitSysErr( err ) => {
+				Err( err )
+			}
+		}			
+	} 
+	
+	priv fn merge_args( args: &~FitArgs, fit_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, fit_state: &mut ~Object ) {
+
+		let keys = args.doc.arg_keys();
+		for keys.iter().advance | key | {
+			if arg_bank.contains_key( key ) {
+				arg_bank.remove( key );
+			}
+			arg_bank.insert( copy *key, args.doc.get_json_val( copy *key ).to_json() );	
+		}
+		match args.doc.get_str( ~"attach" ) {
+			Ok( atch_name ) => {
+				if attached.contains_key( &atch_name ) {
+					attached.remove( &atch_name );
+				}
+				attached.insert(  atch_name, copy args.attach );	
+				
+			} _ => {}
+		}
+		if fit_state.contains_key( &fit_key) {
+			fit_state.remove( &fit_key );
+		}
+		fit_state.insert( fit_key, copy args.state.to_json() );
+	}		
 		
-	//  Maybe I should bring up an issue I am pondering at the moment.
-	//  What I like about the arg_bank is that when a reasonably large (1.4MB max) 
-	//	document first comes in, it can be loaded into the arg_bank and all the
-	//	Fits that validate credentials and so forth will not have the big stuff
-	//  sent to them unless their spec calls for it.  Then in the end, when every 
-	//	thing is validated, the big stuff can be sent on a channel and saved.  If 
-	//  a Fit, in-between the user submission an the final save, needs to examine 
-	//  the big stuff, then it can be included in the spec. That system puts a lot 
-	//  of power and responsibility in the hands of a Logic Strand script writers. 
-	
-	//  In Must, the current design, which was chosen partly because it is easy to implement,
-	//	takes the the incoming args, loads them, and calls the Fit, and when that
-	//  Fit returns args, those args get loaded into the arg bank, overwriting
-	//  any args with that share names, such as spec_key.    
-  
-	//  speced_arg_excerpt takes the expected spec of the upcoming Fit and attempts to extract 
-	//  those args, by key, from the arg bank.  It then checks those extracted args for 
-	//  adherence to the expected spec. If everything passes, Ok( args ) is returned, 
-	//  otherwise descriptive error messages are returned, according to spec ;).
-	
-	priv fn speced_arg_excerpt( spec: &~Object, arg_bank_chan: SharedChan<JahMutReq> )-> Result<~FitArgs, ~FitErrs> {
+	priv fn speced_arg_excerpt( spec: &~Object, arg_bank: &~HashMap<~str, Json>, attached: &~HashMap<~str, ~[u8]>, fit_state: &~HashMap<~str, Json>, reg_key: ~str )-> Result<~FitArgs, ~FitErrs> {
 		
 		let mut rval = ~HashMap::new();
 		let keys = { 
 			match JahSpec::allowed_keys( spec ) {
 				Ok( keys ) => { keys } 
-				Err( err ) => { return Err( FitErrs::from_objects( err ) ) }
+				Err( err ) => { return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"RqTr8enRtmwjwWrf" )] + err ) ) }
 				}};
 		for keys.iter().advance | key | {
-				match {let ( p, c ) = oneshot();
-				arg_bank_chan.send( GetJson( copy *key, c ) );  // not sure all this back and forth is worth it
-				recv_one( p )
-			}
-			{	Some( arg_val ) => { 
-					rval.insert( copy *key, arg_val ); // <-- a little bit lost?  Maybe iter() belongs on jah_mut to reduce communication overhead?
+			match arg_bank.find( key ) {
+				Some( arg_val ) => { 
+					rval.insert( copy *key, copy *arg_val );
 				}
-				None => {}  // leaving the ramifications of this missing arg to the spec check	
+				None => {}  // leaving the ramifications of this missing arg to the upcomming spec check	
 			}
 		}
-		match JahSpec::check_args( spec, &rval  ) {
-			Ok( _ ) => {
-				match rval.get_str(~"attach") {
-					Ok( attached_name ) => {
-						let ( p, c ) = oneshot();
-						arg_bank_chan.send( GetAttach( copy attached_name, c ) );
-						match recv_one( p ) {
-							Some( attached_bytes ) => {
-								Ok( ~FitArgs{ doc: rval, attach: attached_bytes } ) 
-							}
-							None => {
-								Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), copy attached_name, ~"Kyzltdf11TRcTIiI", ~"must_bank.rs" ) ) )
+		let attch = {
+			match JahSpec::check_args( spec, &rval  ) {
+				Ok( _ ) => {
+					match rval.get_str(~"attach") {
+						Ok( attached_name ) => {
+							match attached.find( &attached_name ) {
+								Some( attached_bytes ) => {
+									copy *attached_bytes
+								}
+								None => {
+									return Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), attached_name, ~"Kyzltdf11TRcTIiI", ~"must_bank.rs" ) ) )
+								}
 							}
 						}
-					}
-					Err( _ ) => { //  not really an error, just no need to send an attachment
-						Ok( ~FitArgs::from_doc( rval ) )
+						Err( _ ) => { //  not really an error, just no need to send an attachment
+							~[]
+						}
 					}
 				}
-			}
-			Err( errs ) => {
-				Err( FitErrs::from_objects( errs ) )
-			}
-		}
-	}
-	
+				Err( errs ) => {
+					return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"FHLGfPficrDnNzao" )] + errs ) );
+				}	
+			}};
+		let st = {
+			match fit_state.find( &reg_key ) {				
+				Some( s ) => {
+					let s = copy *s;
+					match s {
+						Object( st ) => {
+							st
+						} _ => {
+							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_key_arg_must_be_object(), reg_key, ~"estS8AGY3WTUyZqW", ~"must_bank.rs" ) ) );
+						}
+					}
+				}
+				None => {
+					~HashMap::new()
+				}
+			}};		
+		Ok( ~FitArgs{ doc: rval, attach: attch, state: st } )
+	}	
+			
 	//t = transcription.
 	priv fn make_t_key( t_key: Must ) -> ~Object {
 	

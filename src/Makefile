@@ -17,9 +17,6 @@ all: clean
 	rustc jah_spec.rs --test -o jah_spec-tests -L .
 	./jah_spec-tests
 	rustc --lib fit.rs -L .
-	rustc --lib jah_mut.rs -L .
-	rustc jah_mut.rs --test -o jah_mut-tests -L .
-	./jah_mut-tests	
 	rustc --lib par.rs -L .
 	rustc --lib fits/err_fit.rs -L .
 	rustc --lib strand.rs -L .

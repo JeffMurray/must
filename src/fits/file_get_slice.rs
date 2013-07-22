@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "file_get_slice", vers = "1.0")];
+#[link(name = "file_get_slice", vers = "0.0")];
 
 //	rustc --lib fits/file_get_slice.rs -L . -L fits
 //	rustc fits/file_get_slice.rs --test -o fits/file_get_slice-tests -L . -L fits
@@ -100,7 +100,7 @@ impl FileGetSlice {
 						file_reader.seek( pos, SeekSet );
 						let mut file_slice = std::vec::from_elem(len, 0_u8);
 						file_reader.read( file_slice, len );
-						home_chan.send( FitOk( ~FitArgs{ doc: args, attach: file_slice } ) );
+						home_chan.send( FitOk( ~FitArgs::from_doc_with_attach( args, file_slice ) ) );
 					}		
 				} ParFitCommEndChan => {} // the calling function does not send ParFitCommEndChan and this is a private function
 			}
@@ -224,7 +224,7 @@ fn test_write_and_read() {
 		bw.flush();						
 		let rval = {
 			match { let ( p, c ) = oneshot();
-				fit_chan.send( DoFit(  ~FitArgs{ doc: r_doc, attach: copy *bw.bytes }, c ) );
+				fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( r_doc, copy *bw.bytes ), c ) );
 				recv_one( p )
 			} {
 				FitOk( rval ) => {

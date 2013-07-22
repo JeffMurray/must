@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "err_fit", vers = "1.0")];
+#[link(name = "err_fit", vers = "0.0")];
 
 //	rustc --lib fits/err_fit.rs -L .
 

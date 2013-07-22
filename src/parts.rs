@@ -10,7 +10,7 @@
 //	rustc parts.rs --test -o parts-tests -L .
 //	./parts-tests
 
-#[link(name = "parts", vers = "1.0")];
+#[link(name = "parts", vers = "0.0")];
 
 extern mod std;
 extern mod extra;

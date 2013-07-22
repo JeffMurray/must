@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "file_append_slice", vers = "1.0")];
+#[link(name = "file_append_slice", vers = "0.0")];
 
 //	rustc --lib fits/file_append_slice.rs -L .
 //	rustc fits/file_append_slice.rs --test -o fits/file_append_slice-tests -L . -L fits
@@ -72,7 +72,7 @@ impl JahSpeced for FileAppendSlice {
 	
 	fn spec_keys_out( &self ) -> ~[~str] {
 	
-		~[Bootstrap::spec_file_slice_key()]
+		~[Bootstrap::spec_file_append_result_key()]
 	}
 }
 
@@ -131,10 +131,9 @@ impl FileAppendSlice {
 							break;
 						},
 			  			DoFit( args, home_chan ) => {
-			  				
 			  				if args.attach.len() == 0 {
-			  					home_chan.send( FitErr ( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) ); 				  				
-			  				} else {
+		  						home_chan.send( FitErr ( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) );
+		  					} else {
 			  					//No need to check args because all fits have their args checked 
 				  				//according to spec prior to getting called and doc_slice_prep has already sliced the document
 								//get current the ending position of the file
@@ -155,7 +154,7 @@ impl FileAppendSlice {
 								slice.insert( ~"spec_key", (Bootstrap::spec_file_slice_key()).to_json() );
 								home_chan.send( FitOk( ~FitArgs::from_doc( slice ) ) );
 							}
-			  			}
+						}
 					}	
 				}
 			}
@@ -229,7 +228,7 @@ fn test_write_and_read() {
 	
 	let rval = {
 		match { let ( p, c ) = oneshot();
-			fit_chan.send( DoFit( ~FitArgs{ doc: copy args, attach: copy *bw.bytes }, c ) );
+			fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( doc, copy *bw.bytes ), c ) );
 			recv_one( p )
 		} {
 			FitOk( rval ) => {

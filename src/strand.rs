@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
  
- #[link(name = "strand", vers = "1.0")];
+ #[link(name = "strand", vers = "0.0")];
  
 //	rustc --lib strand.rs -L .
 //	rustc strand.rs --test -o strand-tests -L .
@@ -14,12 +14,10 @@
 
 extern mod std;
 extern mod extra;
-extern mod jah_mut;
 extern mod bootstrap;
-use jah_mut::{ JahMutReq, GetStr, JahMut, Release, InsertOrUpdate};//JahMut, Release and InsertOrUpdate are used in unit tests 
 use extra::json::{ Object, String, ToJson };// String and ToJson are use in unit tests
 use bootstrap::{ Bootstrap };
-use std::comm::{ oneshot, recv_one, SharedChan };
+use std::comm::{ oneshot, recv_one, SharedChan, ChanOne };
 use std::hashmap::HashMap;
 use std::task::spawn;
 
@@ -78,6 +76,7 @@ enum LogicOutComm {
 	//Fit = Functionally Isolated Transaction
 	DoFit( ~str ),  // ( reg_key )
 	LogicErr( ~Object ),
+	GetArgStr( ~str, ChanOne<Option<~str>> ),
 	EndOfStrand
 }
 
@@ -97,7 +96,7 @@ impl StrandKeyMap {
 
 impl Ribosome {
 
-	pub fn connect( strand_key: ~str, arg_bank: SharedChan<JahMutReq> ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
+	pub fn connect( strand_key: ~str ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
 	
 		// Finds the Strand of Logic using strand_key and then calls Parfitables and accumulates an arg_bank
 		// that can be used to satisfy jah_spec requirements of Fits while working its way over the strands.
@@ -131,7 +130,7 @@ impl Ribosome {
 					KeyMatch( args_key, strand_map ) => {
 						let val = { 
 							let ( p, c ) = oneshot();
-							arg_bank.send( GetStr( copy args_key, c ) );
+							rib_chan.send( GetArgStr( copy args_key, c ) );
 							recv_one( p )
 							};
 						match val {
@@ -201,39 +200,62 @@ impl Ribosome {
 fn various() {
 
 	//Setup an arg_bank
-	let ( arg_bank_chan, admin_chan ) = JahMut::connect();
-	let arg_bank_chan = SharedChan::new( arg_bank_chan );			
-	admin_chan.send ( InsertOrUpdate( ~"some_arg_key", String( ~"ants_are" ).to_json() ) );
-	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" , arg_bank_chan.clone() );
+	let mut arg_bank = ~HashMap::new();			
+	arg_bank.insert( ~"some_arg_key", String( ~"ants_are" ).to_json()  );
+	let ( port, chan ) = Ribosome::connect( ~"o88KanesoJ6J19uN" );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 1" ) }
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }
+		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == ~"Fit 2" ) }
-		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }	
+		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }	
 		EndOfStrand	=> { fail!() }	
 	}	
 	chan.send( NextOk );
 	match port.recv() {
-		DoFit( key ) => { println( key ); assert!( key == Bootstrap::doc_slice_prep_key() ) }
+		DoFit( key ) => { println( key ); fail!(); }
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		GetArgStr( arg_key, chan ) => {
+			match arg_bank.find( &arg_key ) {
+				Some( val ) => {
+					let val = copy *val;
+					match val {
+						String( s ) => {
+							chan.send( Some( copy s ) );
+						} _ => fail!()
+					}	
+				}
+				None => {
+					chan.send( None );
+				}
+			}
+		}
+		EndOfStrand	=> { fail!() }	
+	}
+	match port.recv() {
+		DoFit( key ) => { println( key ); assert!( key == Bootstrap::doc_slice_prep_key() ) }
+		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }	
+		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }	
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextErr );
 	match port.recv() {
 		DoFit( key ) => { assert!( key == Bootstrap::err_fit_key() ) } // the first fit in the error strand
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }
 		EndOfStrand	=> { fail!() }	
 	}
 	chan.send( NextOk );
 	match port.recv() {
 		DoFit( key ) => { std::io::println( key ); fail!() }
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
+		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }
 		EndOfStrand	=> {  }	
 	}	
-	admin_chan.send( Release );
 }	
 

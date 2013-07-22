@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
  
- #[link(name = "lurker", vers = "1.0")];
+ #[link(name = "lurker", vers = "0.0")];
  
 //	rustc --lib lurker.rs -L .
 //	rustc lurker.rs --test -o lurker-tests -L .
@@ -34,16 +34,18 @@
 //	two layers of holes will be trivial, making the lookups about
 //	the same.  We will see.
 
-trait Colony {
+//  most of the action is in fits/lurker_tunnel.rs, or will be when it is finished
+
+trait Gallery {
 
 	fn find_hole(&self, val: char ) -> Result<Object, None>;
 }
 
-impl Colony for Object {
+impl Gallery for ~HashMap<~str, Json> {
 
 	fn find_hole(&self, val: char ) -> Result<Object, None>  {
 		
-		match self.paths.find( from_char( val ) ) {
+		match self.find( from_char( val ) ) {
 			Some( obj ) => {
 				obj
 			}
@@ -53,3 +55,7 @@ impl Colony for Object {
 		}
 	}
 }
+
+
+
+

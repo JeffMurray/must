@@ -6,7 +6,7 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-#[link(name = "doc_slice_prep", vers = "1.0")];
+#[link(name = "doc_slice_prep", vers = "0.0")];
 
 //	rustc --lib fits/doc_slice_prep.rs -L .
 //	rustc fits/doc_slice_prep.rs --test -o fits/doc_slice_prep-tests -L . -L fits
@@ -124,7 +124,7 @@ impl DocSlicePrep {
 							let mut encoder = PrettyEncoder( bw as @Writer );
 							doc.to_json().encode( &mut encoder );				
 							bw.flush();			 		
-							home_chan.send( FitOk( ~FitArgs{ doc: r_doc, attach: copy *bw.bytes } ) );							
+							home_chan.send( FitOk( ~FitArgs::from_doc_with_attach( r_doc, copy *bw.bytes ) ) );							
 						}
 						Err( errs ) => {
 							home_chan.send( FitErr( errs ) );
