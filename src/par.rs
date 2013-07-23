@@ -100,7 +100,7 @@ impl Par {
 	
 		let (in_port, in_chan): ( Port<SpawnComm>, Chan<SpawnComm>) = stream();
 		do spawn {
-			match in_port.recv() {
+			match in_port.try_recv().expect("par 1")  {
 				SpawnDoFit( args, fit_chan, home_chan, par_chan, spawns ) => {
 					let start = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let ( p, c ) = oneshot();
@@ -146,11 +146,11 @@ impl Par {
 							yield();
 						},
 						RecvGoodByPort => {
-							good_by_port.recv(); // spawn is saying good-by
+							good_by_port.try_recv().expect("par 2") ; // spawn is saying good-by
 							current_spawns -= 1;	
 						},
 						RecvInPort => {
-							let new_req = in_port.recv();
+							let new_req = in_port.try_recv().expect("par 3");
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
@@ -159,7 +159,7 @@ impl Par {
 								}
 								ParCommEndChan( ack_chan ) => {
 									while current_spawns > 0 {
-										good_by_port.recv(); // spawn is saying good-by
+										good_by_port.try_recv().expect("par 4"); // spawn is saying good-by
 										current_spawns -= 1;	
 									}
 

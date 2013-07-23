@@ -70,14 +70,14 @@ impl MustBank {
 								( port.peek(), goodby_port.peek() )
 							}};
 						if recv_trans {
-							match port.recv() {
+							match port.try_recv().expect("loop_in_spawn 1") {
 								MBTranscript( args, chan_one ) => {
 									t_count += 1;
 									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 								}
 								MBRelease( ack_chan ) => {
 									while t_count > 0 { //TODO: put a timeout here?
-										goodby_port.recv();
+										goodby_port.try_recv().expect("loop_in_spawn 2");
 										t_count -= 1;
 									}
 									let ( p, c ) = oneshot();
@@ -89,7 +89,7 @@ impl MustBank {
 							}
 						}
 						if recv_goodby {
-							goodby_port.recv();
+							goodby_port.try_recv().expect("loop_in_spawn 3");
 							t_count -= 1;
 						}
 						if !( recv_trans || recv_goodby ) {
@@ -155,7 +155,7 @@ impl Transcriptor {
 		let ( start_port, start_chan ) = stream();
 		do spawn {
 			let kickoff_strand_key = copy kickoff_strand_key;	
-			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
+			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.try_recv().expect("transcriptor 1") ;
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
 			// These HashMaps are how state is maintained as an outside document request is shuttled across fits.  I am explicitly typing them for readability
@@ -164,7 +164,7 @@ impl Transcriptor {
 			let mut fit_state: ~HashMap<~str, Json>  = ~HashMap::new();
 			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key );
 			loop {
-				match rib_port.recv() {
+				match rib_port.try_recv().expect("transcriptor 2")  {
 					GetArgStr( key, chan ) => {
 						match arg_bank.get_str( key ) { 
 							Ok( val ) => {
@@ -227,11 +227,11 @@ impl Transcriptor {
 		let fo: FitOutcome = {
 			match { let ( p, c ) = oneshot();
 				parts_chan.send( GetParTChan( copy reg_key, c ) ); // ChanOne<ParTOutComm>
-				recv_one( p )
+				p.try_recv().expect("do_fit 1")
 				} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 						let ( p2, c2 ) = oneshot();
 						part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
-						recv_one( p2 )
+						p2.try_recv().expect("do_fit 2")
 					} 
 					ParTErr( err ) => {
 						return Err( err.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
@@ -404,7 +404,7 @@ fn add_document_strand() {
 			args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 			let ( p, c ) = oneshot();
 			mbs.send( MBTranscript( args, c ) );
-			match recv_one( p ) {
+			match p.try_recv().expect(">> No way this can still be receiving? <<") {
 				Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
 					//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 				}
@@ -413,6 +413,9 @@ fn add_document_strand() {
 		}
 		i += 1;
 	}
+	println( "documents submitted" );
+	
+	// /*  Even more bizzare, comment out this block of code and the task failures increase
 	let mut doc = ~HashMap::new();
 	doc.insert( ~"message",String( ~"must_bank error reporting for duty." ) );
 	let mut args = ~HashMap::new();
@@ -423,23 +426,24 @@ fn add_document_strand() {
 	args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 	let ( p, c ) = oneshot();
 	must_bank_in.clone().send( MBTranscript( args, c ) );
-	match recv_one( p ) {
+	match p.try_recv().expect("mb test 1") {
 		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
 			//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 		}
 		Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 	}
+	// */
 	
 	// The reason for these yields is that they prevent task failures in teardown
 	// I thinlk I need to figure out how not to call MBRelease until after after all the 
 	// transscriptors are up and running.  Since this is a teardown issue, I am
-	// to chew on it a bit while I debate with myself :) whether it is worth adding
+	// going to chew on it a bit while I debate with myself :) whether it is worth 
 	//	paying for the extra plumbing to keep track of this.	
-	yield();yield();yield();yield();yield();yield();yield();yield();yield();yield();   // <- temp fix 
+	//yield();yield();yield();yield();yield();yield();yield();yield();yield();yield();   // <- temp fix 
 						
 	let ( p, c ) = oneshot();
     must_bank_in.clone().send( MBRelease( c ) );
-	recv_one( p );  // wait for the ack
+	p.try_recv().expect("mb test 2");;  // wait for the ack
 	std::io::println( "reminder: check and delete test.json" );
 }
 

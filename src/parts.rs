@@ -6,8 +6,8 @@
 //	option. This file may not be copied, modified, or distributed
 //	except according to those terms.
 
-//	rustc --lib parts.rs -L .
-//	rustc parts.rs --test -o parts-tests -L .
+//	rustc --lib parts.rs -L . -L fits
+//	rustc parts.rs --test -o parts-tests -L . -L fits
 //	./parts-tests
 
 #[link(name = "parts", vers = "0.0")];
@@ -76,7 +76,7 @@ impl ParTs {
 				let mut break_again = false;  //Haven't figured out how to directly exit a spawn from an inner loop without using fail!()
 				while admin_port.peek() {
 					recvd = true;
-					let part: ParTInAdminComm = admin_port.recv();
+					let part: ParTInAdminComm = admin_port.try_recv().expect("parts 1");
 					match part {
 						AddParT( reg_key, result_chan ) => {
 							let val: Result<SharedChan<ParInComm>, ~FitErrs>  = ParTs::load_part( copy reg_key );
@@ -95,7 +95,7 @@ impl ParTs {
 					            do parts.consume | _ , chan| { 
 									let ( p, c ) = oneshot();
 									chan.send( ParCommEndChan( c ) );
-									recv_one( p );
+									p.try_recv().expect("parts 4") ;
             					}
 								break_again = true;
 								ack_chan.send( () );
@@ -107,7 +107,7 @@ impl ParTs {
 				if break_again { break; }
 				if user_port.peek() {
 					recvd = true;
-					let usr_req: ParTInComm = user_port.recv();
+					let usr_req: ParTInComm = user_port.try_recv().expect("parts 2");
 					match usr_req {
 						GetParTChan( reg_key, par_chan_one ) => { 
 							let opt_chan = parts.find( &reg_key );
@@ -136,10 +136,10 @@ impl ParTs {
 		//let par_chan = part.chan.clone();
 		let ( port, chan ) = stream();
 		do spawn {
-			let chan_one: ChanOne<ParTOutComm> = port.recv();
+			let chan_one: ChanOne<ParTOutComm> = port.try_recv().expect("parts 3");
 			let ( p, c ) = oneshot();
 			chan_one.send( ParTChan( c ) ); // ChanOne<ParInComm>
-			par_chan.send( recv_one( p ) );
+			par_chan.send( p.try_recv().expect("parts 3") );
 		}
 		chan
 	}	

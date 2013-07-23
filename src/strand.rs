@@ -115,7 +115,7 @@ impl Ribosome {
 				match logic {
 					OkErr( ok_fit_reg_key, err_strand_key ) => {
 						rib_chan.send( DoFit( copy ok_fit_reg_key ) );
-						let reply: LogicInComm = rib_port.recv();
+						let reply: LogicInComm = rib_port.try_recv().expect("Ribosome::connect 1");
 						match reply {
 							NextOk => { pos += 1; }
 							NextErr => {
