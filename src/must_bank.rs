@@ -158,10 +158,8 @@ impl Transcriptor {
 			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
-			// These HashMaps are how state is maintained as an outside document request is shuttled across fits.  I am explicitly typing them for readability
 			let mut arg_bank: ~HashMap<~str, Json> = args; 
 			let mut attached: ~HashMap<~str, ~[u8]>  = ~HashMap::new();
-			let mut fit_state: ~HashMap<~str, Json>  = ~HashMap::new();
 			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key );
 			loop {
 				match rib_port.recv()  {
@@ -182,7 +180,7 @@ impl Transcriptor {
 						break; 
 					}
 					DoFit( reg_key ) => { 
-						match Transcriptor::do_fit( reg_key, &mut arg_bank , &mut attached, &mut fit_state, parts_chan.clone() ) {
+						match Transcriptor::do_fit( reg_key, &mut arg_bank , &mut attached, parts_chan.clone() ) {
 							Ok( signal ) => {
 								rib_chan.send( signal );
 							}
@@ -200,7 +198,7 @@ impl Transcriptor {
 		start_chan
 	}
 	
-	priv fn do_fit( reg_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, fit_state: &mut ~Object, parts_chan: SharedChan<ParTInComm> ) -> Result<LogicInComm, ~FitErrs>  {
+	priv fn do_fit( reg_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, parts_chan: SharedChan<ParTInComm> ) -> Result<LogicInComm, ~FitErrs>  {
 	
 		let spec_key = { //get the latest spec that was loaded in the arg bank
 			match arg_bank.get_str( ~"spec_key" ) {
@@ -217,7 +215,7 @@ impl Transcriptor {
 				} 
 			}};
 		let args = { 
-			match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank, attached, fit_state, copy reg_key ) {
+			match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank, attached, copy reg_key ) {
 				Ok( args ) => { args }													  
 				Err( errs ) => {
 					return Err( errs.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
@@ -245,12 +243,12 @@ impl Transcriptor {
 					Ok( key ) => {
 						match JahSpec::check_args( &Bootstrap::find_spec( key ), &rval.doc ) {
 							Ok( _ ) => {
-								Transcriptor::merge_args( &rval, reg_key, arg_bank, attached, fit_state );
+								Transcriptor::merge_args( &rval, reg_key, arg_bank, attached );
 								Ok( NextOk )					
 							}
 							Err( errs ) => {
 								let fit_errs = FitErrs::from_objects( errs);
-								Transcriptor::merge_args( &~FitArgs::from_doc( fit_errs.to_args() ), reg_key, arg_bank, attached, fit_state );
+								Transcriptor::merge_args( &~FitArgs::from_doc( fit_errs.to_args() ), reg_key, arg_bank, attached );
 								Ok( NextOk )								
 							}
 						}
@@ -265,7 +263,7 @@ impl Transcriptor {
 									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"must_bank.rs" ) )
 								}
 							}};
-						Transcriptor::merge_args( &~FitArgs::from_doc( errs.to_args() ), reg_key, arg_bank, attached, fit_state );
+						Transcriptor::merge_args( &~FitArgs::from_doc( errs.to_args() ), reg_key, arg_bank, attached );
 						Ok( NextErr )														
 					}
 				}
@@ -273,7 +271,7 @@ impl Transcriptor {
 			FitErr( rval ) => {
 				let doc = rval.to_args();
 				//println( to_pretty_str( &Object( copy doc ).to_json() ) );
-				Transcriptor::merge_args( &~FitArgs::from_doc( doc ), reg_key, arg_bank, attached, fit_state );
+				Transcriptor::merge_args( &~FitArgs::from_doc( doc ), reg_key, arg_bank, attached );
 				Ok( NextErr )
 			}
 			FitSysErr( err ) => {
@@ -282,7 +280,7 @@ impl Transcriptor {
 		}			
 	} 
 	
-	priv fn merge_args( args: &~FitArgs, fit_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, fit_state: &mut ~Object ) {
+	priv fn merge_args( args: &~FitArgs, fit_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]> ) {
 
 		let keys = args.doc.arg_keys();
 		for keys.iter().advance | key | {
@@ -300,13 +298,9 @@ impl Transcriptor {
 				
 			} _ => {}
 		}
-		if fit_state.contains_key( &fit_key) {
-			fit_state.remove( &fit_key );
-		}
-		fit_state.insert( fit_key, copy args.state.to_json() );
 	}		
 		
-	priv fn speced_arg_excerpt( spec: &~Object, arg_bank: &~HashMap<~str, Json>, attached: &~HashMap<~str, ~[u8]>, fit_state: &~HashMap<~str, Json>, reg_key: ~str )-> Result<~FitArgs, ~FitErrs> {
+	priv fn speced_arg_excerpt( spec: &~Object, arg_bank: &~HashMap<~str, Json>, attached: &~HashMap<~str, ~[u8]>, reg_key: ~str )-> Result<~FitArgs, ~FitErrs> {
 		
 		let mut rval = ~HashMap::new();
 		let keys = { 
@@ -345,23 +339,7 @@ impl Transcriptor {
 					return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"FHLGfPficrDnNzao" )] + errs ) );
 				}	
 			}};
-		let st = {
-			match fit_state.find( &reg_key ) {				
-				Some( s ) => {
-					let s = copy *s;
-					match s {
-						Object( st ) => {
-							st
-						} _ => {
-							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_key_arg_must_be_object(), reg_key, ~"estS8AGY3WTUyZqW", ~"must_bank.rs" ) ) );
-						}
-					}
-				}
-				None => {
-					~HashMap::new()
-				}
-			}};		
-		Ok( ~FitArgs{ doc: rval, attach: attch, state: st } )
+		Ok( ~FitArgs{ doc: rval, attach: attch } )
 	}	
 			
 	//t = transcription.
@@ -373,12 +351,6 @@ impl Transcriptor {
 		rval
 	}
 }
-
-#[test]
-fn test_transcriptor_state() {
-	
-}
-
 
 #[test]
 fn add_document_strand() {

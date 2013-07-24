@@ -28,19 +28,18 @@ use bootstrap::{ Bootstrap };
 struct FitArgs {
 	doc: ~Object,
 	attach: ~[u8], //  Args can only contain 0 or 1 attachment, for multiple attachments use multiple calls
-	state: ~Object //  A way for a Fit to get state information back with a result
 }
 
 impl FitArgs {
 
 	pub fn from_doc( doc: ~Object ) -> FitArgs {
 	
-		FitArgs{ doc: doc, attach: ~[], state: ~HashMap::new() }
+		FitArgs{ doc: doc, attach: ~[] }
 	}	
 	
 	pub fn from_doc_with_attach( doc: ~Object, attach: ~[u8] ) -> FitArgs {
 	
-		FitArgs{ doc: doc, attach: attach, state: ~HashMap::new() }
+		FitArgs{ doc: doc, attach: attach }
 	}	
 }
 
