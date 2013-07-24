@@ -9,15 +9,14 @@
 //	rustc --lib par.rs -L .
 //	par.rs is tested in parts.rs 
 
-#[link(name = "par", vers = "1.0")];
+#[link(name = "par", vers = "0.0")];
 
 extern mod std;
 extern mod extra;
 extern mod fit;
 use extra::time::Timespec;
-use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm, FitArgs, FitErrs }; // FitTryFail, FitSysErr, FitErr, FitOk, 
-//use extra::json::{ Object };
-use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot, recv_one };
+use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm, FitArgs, FitErrs };
+use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot };
 use std::task::{ spawn, yield };
 
 //	A Par (Programmable Argument Relay) a Rust impl that with each request, takes some args and 
@@ -100,12 +99,12 @@ impl Par {
 	
 		let (in_port, in_chan): ( Port<SpawnComm>, Chan<SpawnComm>) = stream();
 		do spawn {
-			match in_port.try_recv().expect("par 1")  {
+			match in_port.recv()  {
 				SpawnDoFit( args, fit_chan, home_chan, par_chan, spawns ) => {
 					let start = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let ( p, c ) = oneshot();
 					fit_chan.send( DoFit( copy args, c ) );
-					let outcome =  recv_one( p );
+					let outcome =  p.recv();
 					let end = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let mut sec_diff = end.sec - start.sec;
 					let mut nsec_diff = end.nsec - start.nsec;
@@ -146,11 +145,11 @@ impl Par {
 							yield();
 						},
 						RecvGoodByPort => {
-							good_by_port.try_recv().expect("par 2") ; // spawn is saying good-by
+							good_by_port.recv(); // spawn is saying good-by
 							current_spawns -= 1;	
 						},
 						RecvInPort => {
-							let new_req = in_port.try_recv().expect("par 3");
+							let new_req = in_port.recv();
 							match new_req {
 								ParTrans(  args, home_chan ) => {
 									current_spawns += 1;
@@ -159,7 +158,7 @@ impl Par {
 								}
 								ParCommEndChan( ack_chan ) => {
 									while current_spawns > 0 {
-										good_by_port.try_recv().expect("par 4"); // spawn is saying good-by
+										good_by_port.recv(); // spawn is saying good-by
 										current_spawns -= 1;	
 									}
 

@@ -17,7 +17,7 @@ extern mod extra;
 extern mod bootstrap;
 use extra::json::{ Object, String, ToJson };// String and ToJson are use in unit tests
 use bootstrap::{ Bootstrap };
-use std::comm::{ oneshot, recv_one, SharedChan, ChanOne };
+use std::comm::{ oneshot, ChanOne };
 use std::hashmap::HashMap;
 use std::task::spawn;
 
@@ -115,7 +115,7 @@ impl Ribosome {
 				match logic {
 					OkErr( ok_fit_reg_key, err_strand_key ) => {
 						rib_chan.send( DoFit( copy ok_fit_reg_key ) );
-						let reply: LogicInComm = rib_port.try_recv().expect("Ribosome::connect 1");
+						let reply: LogicInComm = rib_port.recv();
 						match reply {
 							NextOk => { pos += 1; }
 							NextErr => {
@@ -131,7 +131,7 @@ impl Ribosome {
 						let val = { 
 							let ( p, c ) = oneshot();
 							rib_chan.send( GetArgStr( copy args_key, c ) );
-							recv_one( p )
+							p.recv()
 							};
 						match val {
 							Some( key ) => { 
@@ -256,6 +256,7 @@ fn various() {
 		LogicErr( err ) => { std::io::println( extra::json::to_pretty_str(&(err.to_json()))); fail!() }		
 		GetArgStr( arg_key, chan ) => { std::io::println( arg_key ); fail!() }
 		EndOfStrand	=> {  }	
-	}	
-}	
+	}
+}
+	
 

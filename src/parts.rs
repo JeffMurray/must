@@ -19,7 +19,7 @@ extern mod fit;
 extern mod bootstrap;
 extern mod must;
 //extern mod jah_spec;
-//excuse me while I load the fits here for now.
+//loading the fits here for now.
 extern mod file_get_slice;
 extern mod file_append_slice;
 extern mod doc_slice_prep;
@@ -29,14 +29,13 @@ use file_get_slice::{ FileGetSlice };
 use file_append_slice::{ FileAppendSlice };
 use doc_slice_prep::{ DocSlicePrep };
 //***
-//use jah_spec::{ JahSpeced };
 use par::{ Par, ParInComm, ParCommEndChan, ParTrans, FitOutcome }; //ParTrans and FitOutcome are used in unit tests
 use fit::{ Parfitable, ParFitComm, FitErrs, FitOk, FitErr, FitSysErr, FitArgs };// FitOk, FitErr, FitSysErr and FitArgs are used in unit tests
 use bootstrap::{ Bootstrap };
-use must::{ Must }; //Must is us used in unit tests
+use must::{ Must }; //Must is not used in unit tests
 use std::hashmap::HashMap;
 use extra::json::{ String, ToJson };
-use std::comm::{ stream, Chan, SharedChan, ChanOne, oneshot, recv_one };
+use std::comm::{ stream, Chan, SharedChan, ChanOne, oneshot };
 use std::task::{ spawn, yield };
 
 //  ParTs is the place where live Parfitables and their channels can be loaded and accessed 
@@ -212,28 +211,28 @@ fn various_parts() {
 		}};
 	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( Bootstrap::file_append_slice_key(), c ) );  //FileAppendSlice
-			recv_one( p )
+			p.recv()
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
 	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( Bootstrap::err_fit_key(), c ) );  // ErrFit
-			recv_one( p )
+			p.recv()
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
 	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT( Bootstrap::doc_slice_prep_key(), c ) );  // DocSlicePrep
-			recv_one( p )
+			p.recv()
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
 	}
 	match {	let ( p, c ) = oneshot();
 			admin_chan.send( AddParT(  Bootstrap::file_get_slice_key(), c ) );  // FileGetSlice
-			recv_one( p )
+			p.recv()
 		} {
 			Ok( _ ) => {}
 			Err( _ ) => { fail!(); }
@@ -249,11 +248,11 @@ fn various_parts() {
 	let fo: FitOutcome = {
 			match { let ( p, c ) = oneshot();
 			user_chan.send( GetParTChan( ~"6Ssa58eFrC5Fpmys", c ) ); // ChanOne<ParTOutComm>
-			recv_one( p )
+			p.recv()
 		} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 				let ( p2, c2 ) = oneshot();
 				part_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c2 ) ); // ChanOne<ParTOutComm>
-				recv_one( p2 )
+				p2.recv()
 			} 
 			ParTErr( _ ) => { fail!(); } // spec VWnPY4CStrXkk4SU
 		}};
@@ -269,5 +268,5 @@ fn various_parts() {
 	}
 	let ( p, c ) = oneshot();
 	admin_chan.send( ParTsRelease( c ) );
-	recv_one( p );
+	p.recv();
 }

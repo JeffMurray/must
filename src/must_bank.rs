@@ -31,7 +31,7 @@ use must::{ Must };
 use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr, GetArgStr, LogicInComm };
 use extra::json::{ Object, String, ToJson, Json }; // , to_pretty_str
 use bootstrap::{ Bootstrap };
-use std::comm::{ oneshot, recv_one, ChanOne, stream, SharedChan };
+use std::comm::{ oneshot, ChanOne, stream, SharedChan };
 use std::hashmap::HashMap;
 use std::task::{ spawn, yield };
 
@@ -70,26 +70,26 @@ impl MustBank {
 								( port.peek(), goodby_port.peek() )
 							}};
 						if recv_trans {
-							match port.try_recv().expect("loop_in_spawn 1") {
+							match port.recv() {
 								MBTranscript( args, chan_one ) => {
 									t_count += 1;
 									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
 								}
 								MBRelease( ack_chan ) => {
 									while t_count > 0 { //TODO: put a timeout here?
-										goodby_port.try_recv().expect("loop_in_spawn 2");
+										goodby_port.recv();
 										t_count -= 1;
 									}
 									let ( p, c ) = oneshot();
 									admin_parts_chan.send( ParTsRelease( c ) );
-									recv_one( p );
+									p.recv(); // waiting for Ack
 									ack_chan.send(());
 									break;
 								}
 							}
 						}
 						if recv_goodby {
-							goodby_port.try_recv().expect("loop_in_spawn 3");
+							goodby_port.recv();
 							t_count -= 1;
 						}
 						if !( recv_trans || recv_goodby ) {
@@ -117,28 +117,28 @@ impl MustBank {
 			}};
 		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( Bootstrap::file_append_slice_key(), c ) );  //FileAppendSlice
-				recv_one( p )
+				p.recv()
 			} {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
 		}
 		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( Bootstrap::err_fit_key(), c ) );  // ErrFit
-				recv_one( p )
+				p.recv()
 			} {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
 		}
 		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT( Bootstrap::doc_slice_prep_key(), c ) );  // DocSlicePrep
-				recv_one( p )
+				p.recv()
 			} {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
 		}
 		match {	let ( p, c ) = oneshot();
 				admin_chan.send( AddParT(  Bootstrap::file_get_slice_key(), c ) );  // FileGetSlice
-				recv_one( p )
+				p.recv()
 			} {
 				Ok( _ ) => {}
 				Err( _ ) => { fail!(); }
@@ -155,7 +155,7 @@ impl Transcriptor {
 		let ( start_port, start_chan ) = stream();
 		do spawn {
 			let kickoff_strand_key = copy kickoff_strand_key;	
-			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.try_recv().expect("transcriptor 1") ;
+			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
 			let t_key = Must::new();
 			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
 			// These HashMaps are how state is maintained as an outside document request is shuttled across fits.  I am explicitly typing them for readability
@@ -164,7 +164,7 @@ impl Transcriptor {
 			let mut fit_state: ~HashMap<~str, Json>  = ~HashMap::new();
 			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key );
 			loop {
-				match rib_port.try_recv().expect("transcriptor 2")  {
+				match rib_port.recv()  {
 					GetArgStr( key, chan ) => {
 						match arg_bank.get_str( key ) { 
 							Ok( val ) => {
@@ -227,11 +227,11 @@ impl Transcriptor {
 		let fo: FitOutcome = {
 			match { let ( p, c ) = oneshot();
 				parts_chan.send( GetParTChan( copy reg_key, c ) ); // ChanOne<ParTOutComm>
-				p.try_recv().expect("do_fit 1")
+				p.recv()
 				} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
 						let ( p2, c2 ) = oneshot();
 						part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
-						p2.try_recv().expect("do_fit 2")
+						p2.recv()
 					} 
 					ParTErr( err ) => {
 						return Err( err.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
@@ -375,6 +375,12 @@ impl Transcriptor {
 }
 
 #[test]
+fn test_transcriptor_state() {
+	
+}
+
+
+#[test]
 fn add_document_strand() {
 
 	let must_bank_in = {
@@ -390,8 +396,11 @@ fn add_document_strand() {
 	let max = 1000i;
 	let mut i = 1i;
 	std::io::println( "Inserting " + max.to_str() + " documents." );
+	let( port, chan ) = stream();
+	let chan = SharedChan::new( chan );
 	while i <= max {
 		let mbs = must_bank_in.clone();
+		let started = chan.clone();
 		let count = i;
 		do spawn {
 			let mut doc = ~HashMap::new();
@@ -404,18 +413,25 @@ fn add_document_strand() {
 			args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 			let ( p, c ) = oneshot();
 			mbs.send( MBTranscript( args, c ) );
-			match p.try_recv().expect(">> No way this can still be receiving? <<") {
+			match p.recv() {
 				Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
 					//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 				}
 				Err( err ) => { std::io::println( err.to_str() ); fail!(); }
 			}
+			started.send(());
 		}
 		i += 1;
 	}
 	println( "documents submitted" );
 	
-	// /*  Even more bizzare, comment out this block of code and the task failures increase
+	//We need to confirm that all the transcriptors get started before calling MBRelease
+	i = 1;
+	while i <= max {
+		port.recv();
+		i += 1;
+	}
+
 	let mut doc = ~HashMap::new();
 	doc.insert( ~"message",String( ~"must_bank error reporting for duty." ) );
 	let mut args = ~HashMap::new();
@@ -426,24 +442,16 @@ fn add_document_strand() {
 	args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 	let ( p, c ) = oneshot();
 	must_bank_in.clone().send( MBTranscript( args, c ) );
-	match p.try_recv().expect("mb test 1") {
+	match p.recv() {
 		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
 			//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 		}
 		Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 	}
-	// */
-	
-	// The reason for these yields is that they prevent task failures in teardown
-	// I thinlk I need to figure out how not to call MBRelease until after after all the 
-	// transscriptors are up and running.  Since this is a teardown issue, I am
-	// going to chew on it a bit while I debate with myself :) whether it is worth 
-	//	paying for the extra plumbing to keep track of this.	
-	//yield();yield();yield();yield();yield();yield();yield();yield();yield();yield();   // <- temp fix 
 						
 	let ( p, c ) = oneshot();
     must_bank_in.clone().send( MBRelease( c ) );
-	p.try_recv().expect("mb test 2");;  // wait for the ack
+	p.recv();  // wait for the ack
 	std::io::println( "reminder: check and delete test.json" );
 }
 

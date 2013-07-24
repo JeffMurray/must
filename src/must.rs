@@ -61,8 +61,8 @@ impl Must{
 		Must::stamped( r.gen_str(16u))
 	}
 	
-	//	Takes an existing key and returns a new Must with current time stamp
-	//	information, adjusted to utc.
+	//	Takes an existing key and returns a new Must with the same key but current 
+	//	time stamp information.
 	
 	//	This stamp is used for distinguishing new versions of edited 
 	//	documents since edited documents will keep the same alpha numeric 
