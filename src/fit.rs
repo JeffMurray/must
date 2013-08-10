@@ -15,11 +15,13 @@
 extern mod std;
 extern mod extra;
 extern mod bootstrap;
+extern mod must;
+use must::{ Must };
+use bootstrap::{ Bootstrap };
 use extra::json::{ Object, ToJson, String, List };
 use std::comm::{ ChanOne };
 use std::to_str::ToStr;
 use std::hashmap::HashMap;
-use bootstrap::{ Bootstrap };
 
 //	Functionally Isolated Task (Fit)
 // See Par.rs for more info about what a Fit is
@@ -49,7 +51,7 @@ struct FitErrs {
 
 enum ParFitComm { 
 	// take some args, do some work, send the results home
-	DoFit( ~FitArgs, ChanOne<FitComm> ), // ( args, home_chan ) 
+	DoFit( ~FitArgs, ~Must, ChanOne<FitComm> ), // ( args, t_key, home_chan ) 
 	ParFitCommEndChan
 }
 
@@ -60,7 +62,6 @@ enum FitComm { // designed to be used in a oneshot
 }
 
 trait Parfitable {
-	pub fn new( config: ~Object ) -> ~Self;
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> ;
 	pub fn fit_key( &self ) -> ~str;
 }

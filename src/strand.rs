@@ -97,10 +97,10 @@ impl StrandKeyMap {
 impl Ribosome {
 
 	pub fn connect( strand_key: ~str ) -> ( Port<LogicOutComm>, Chan<LogicInComm> ) {
-	
+
 		// Finds the Strand of Logic using strand_key and then calls Parfitables and accumulates an arg_bank
 		// that can be used to satisfy jah_spec requirements of Fits while working its way over the strands.
-		
+
 		let ( rib_port, s1_chan ) = stream();
 		let ( s2_port, rib_chan ) = stream();
 		do spawn {
@@ -150,7 +150,7 @@ impl Ribosome {
 	}
 	
 	priv fn get_strand( strand_key: ~str ) -> Strand {
-	
+
 		//The plan is to make a tool to assemble strands in a multi-language kind of way
 		//once the user interface us up and running
 		match strand_key {
@@ -159,7 +159,7 @@ impl Ribosome {
 				let mut mapped_strands =  ~HashMap::new();
 					//I can only do add document with this spec at the moment
 					mapped_strands.insert( Bootstrap::spec_add_doc_key(), ~"0loMIC2O3UW1yuTW" );
-					
+
 					let strand_map = ~StrandKeyMap {
 							mapped_strands: copy mapped_strands,
 							no_match_strand_key: ~"DROOg7Vt2GXiVl00"
@@ -190,6 +190,10 @@ impl Ribosome {
 				OkErr( ~"Fit 2", ~"DROOg7Vt2GXiVl00" ),
 				KeyMatch( ~"some_arg_key", strand_map ),
 				OkErr( ~"Fit 3", ~"DROOg7Vt2GXiVl00" ) ] }
+			// TestStately
+			~"tuUZAYq5uby19tYG" => {
+				~[OkErr( Bootstrap::stately_tester_key(), ~"fUhzdaBaEYITxXET" )]
+			}
 			//Default
 			_ => { ~[] }
 		}
@@ -258,5 +262,4 @@ fn various() {
 		EndOfStrand	=> {  }	
 	}
 }
-	
 

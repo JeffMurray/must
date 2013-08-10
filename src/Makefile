@@ -22,6 +22,11 @@ all: clean
 	rustc --lib strand.rs -L .
 	rustc strand.rs --test -o strand-tests -L .
 	./strand-tests
+	rustc --lib parts.rs -L . -L fits	
+	rustc parts.rs --test -o parts-tests -L . -L fits
+	./parts-tests
+	rustc --lib transcriptor.rs -L . -L fits
+	rustc --lib stately.rs -L . -L fits	
 	rustc --lib fits/file_append_slice.rs -L .
 	rustc fits/file_append_slice.rs --test -o fits/file_append_slice-tests -L . -L fits
 	./fits/file_append_slice-tests	
@@ -31,9 +36,10 @@ all: clean
 	rustc --lib fits/doc_slice_prep.rs -L .
 	rustc fits/doc_slice_prep.rs --test -o fits/doc_slice_prep-tests -L . -L fits
 	./fits/doc_slice_prep-tests	
-	rustc --lib parts.rs -L . -L fits	
-	rustc parts.rs --test -o parts-tests -L . -L fits
-	./parts-tests
+	rustc --lib fits/stately_tester.rs -L .
+	rustc --lib fits/fits.rs -L . -L fits
+	rustc fits/fits.rs --test -o fits/fits-tests -L . -L fits
+	./fits/fits-tests	
 	rustc --lib must_bank.rs -L . -L fits
 	rustc must_bank.rs --test -o must_bank-tests -L . -L fits
 	./must_bank-tests	

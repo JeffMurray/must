@@ -18,17 +18,6 @@ extern mod par;
 extern mod fit;
 extern mod bootstrap;
 extern mod must;
-//extern mod jah_spec;
-//loading the fits here for now.
-extern mod file_get_slice;
-extern mod file_append_slice;
-extern mod doc_slice_prep;
-extern mod err_fit;
-use err_fit::{ ErrFit };
-use file_get_slice::{ FileGetSlice };
-use file_append_slice::{ FileAppendSlice };
-use doc_slice_prep::{ DocSlicePrep };
-//***
 use par::{ Par, ParInComm, ParCommEndChan, ParTrans, FitOutcome }; //ParTrans and FitOutcome are used in unit tests
 use fit::{ Parfitable, ParFitComm, FitErrs, FitOk, FitErr, FitSysErr, FitArgs };// FitOk, FitErr, FitSysErr and FitArgs are used in unit tests
 use bootstrap::{ Bootstrap };
@@ -58,55 +47,63 @@ enum ParTOutComm {
 }
 
 enum ParTInAdminComm {
-	AddParT( ~str, ChanOne<Result< bool, ~FitErrs >> ), // ( reg_key, result_chan ),
+	AddParT( ~str, uint, Chan<ParFitComm>, ChanOne<Result< bool, ~FitErrs >> ), // ( reg_key, fit_chan, result_chan ),
 	ParTsRelease( ChanOne<()> )
 }
 
 impl ParTs {
 
-	pub fn connect() -> Result<( Chan<ParTInComm>, Chan<ParTInAdminComm> ), ~FitErrs> {
+	pub fn connect() -> Result<( SharedChan<ParTInComm>, SharedChan<ParTInAdminComm> ), ~FitErrs> {
 
 		let ( user_port, user_chan ) = stream();
-		let ( admin_port, admin_chan ) = stream();	
+		let ( admin_port, admin_chan ) = stream();
+		let user_chan = SharedChan::new( user_chan );
 		do spawn {
-			let mut parts = ~HashMap::new();
+			let mut parts = ~HashMap::new();			
 			loop {
 				let mut recvd = false;
 				let mut break_again = false;  //Haven't figured out how to directly exit a spawn from an inner loop without using fail!()
 				while admin_port.peek() {
 					recvd = true;
-					let part: ParTInAdminComm = admin_port.try_recv().expect("parts 1");
+					let part: ParTInAdminComm = admin_port.recv();
 					match part {
-						AddParT( reg_key, result_chan ) => {
-							let val: Result<SharedChan<ParInComm>, ~FitErrs>  = ParTs::load_part( copy reg_key );
-							match val {
+						AddParT( reg_key, spawn_cap, fit_chan, result_chan ) => {
+							let par = Par::new( spawn_cap );
+							match par.connect(fit_chan) {
 								Ok( par_chan ) => {
-									parts.insert( copy reg_key, par_chan );
-									result_chan.send( Ok( true ) );
+									//this whole part adding thing needs some diagnostics built in
+									if !parts.contains_key( &reg_key ) {
+										parts.insert( reg_key, SharedChan::new( par_chan ) );
+										result_chan.send( Ok( true ) );
+										println("part added");
+									} else {
+										result_chan.send( Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::part_key_added_twice_key(), ~"reg_key", ~"b2eXWGdcdmEgc5Tu", ~"parts.rs") ) ) );
+										println("dup part");
+									}									
 								}
-								Err( error ) => {					
+								Err( error ) => {
 									result_chan.send( Err( error.prepend_err( Bootstrap::reply_error_trace_info( ~"parts.rs", ~"seGs8AWBelJ7C4cD") ) ) );
+									println("part err");
 								}
 							}
 						},
 						ParTsRelease( ack_chan ) => {
-							loop {
-					            do parts.consume | _ , chan| { 
-									let ( p, c ) = oneshot();
-									chan.send( ParCommEndChan( c ) );
-									p.try_recv().expect("parts 4") ;
-            					}
-								break_again = true;
-								ack_chan.send( () );
-								break;
+							do parts.consume | reg_key , chan| { 
+								println( ~"releasing " + reg_key );
+								let ( p, c ) = oneshot();
+								chan.send( ParCommEndChan( c ) );
+								p.try_recv().expect("parts 99") ;
 							}
+							break_again = true;
+							ack_chan.send( () );
+							break;
 						}
 					}
 				}
 				if break_again { break; }
 				if user_port.peek() {
 					recvd = true;
-					let usr_req: ParTInComm = user_port.try_recv().expect("parts 2");
+					let usr_req: ParTInComm = user_port.recv();
 					match usr_req {
 						GetParTChan( reg_key, par_chan_one ) => { 
 							let opt_chan = parts.find( &reg_key );
@@ -123,9 +120,8 @@ impl ParTs {
 				}
 				if !recvd { yield(); }				
 			}
-
 		}	
-		Ok(( user_chan, admin_chan ))
+		Ok( ( user_chan.clone(), SharedChan::new( admin_chan ) ) )
 	}
 
 	priv fn no_wait_reply( par_chan: SharedChan<ParInComm> ) -> Chan<ChanOne<ParTOutComm>> {
@@ -135,72 +131,16 @@ impl ParTs {
 		//let par_chan = part.chan.clone();
 		let ( port, chan ) = stream();
 		do spawn {
-			let chan_one: ChanOne<ParTOutComm> = port.try_recv().expect("parts 3");
+			let chan_one: ChanOne<ParTOutComm> = port.recv();
 			let ( p, c ) = oneshot();
 			chan_one.send( ParTChan( c ) ); // ChanOne<ParInComm>
-			par_chan.send( p.try_recv().expect("parts 3") );
+			par_chan.send( p.recv() );
 		}
 		chan
 	}	
-
-	priv fn make_fit( reg_key: ~str ) -> Result<Chan<ParFitComm>, ~FitErrs> {
-	
-		match reg_key {
-			~"S68yWotrIh06IdE8" => {
-				let mut config = ~HashMap::new();
-				config.insert( ~"path", String(~"test.json").to_json() );
-				config.insert( ~"num", 1u.to_json() );
-				config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
-				let fit = ~FileAppendSlice{ file_args: config };
-				fit.connect()
-			}
-			~"GwldCnkeG6FvjMiL" => {
-				let mut config = ~HashMap::new();
-				config.insert( ~"path", String(~"test.json").to_json() );
-				config.insert( ~"num", 1u.to_json() );
-				config.insert( ~"spec_key", String(~"5W6emlWjT77xoGOH").to_json() );
-				let fit = ~FileGetSlice{ file_args: config };
-				fit.connect()
-			}
-			~"6Ssa58eFrC5Fpmys" => {
-				let fit = ~DocSlicePrep{ settings: ~HashMap::new() };
-				fit.connect()
-			}
-			~"Zbh4OJ4uE1R1Kkfr" => {
-				let fit = ~ErrFit{ settings: ~HashMap::new() };
-				fit.connect()
-			}			
-			_ => {
-				Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"parts.rs", ~"Wpk72dvmISQYKvFN" ) ) )
-			}
-		}		
-	}
-	// The reg_key identifies a specific live instance of a fit.  The reason the fit_key is not used
-	// here is because having multiple instances of the same Fit can be handy.
-	priv fn load_part( reg_key: ~str ) -> Result<ParT, ~FitErrs> {
-
-		let fit_chan = {
-			match ParTs::make_fit( copy reg_key ) {
-				Ok( chan_parfit_comm ) => {
-					chan_parfit_comm
-				}
-				Err( err ) => {
-					return Err( err );  // TODO add trace
-				}
-			}};
-		let par = Par::new( 20u );
-		match par.connect(fit_chan) {
-			Ok( par_chan ) => {
-				Ok( SharedChan::new( par_chan ) )
-			}
-			Err( err ) => {
-				Err( err )
-			}
-		}						
-	}	
 }
 
-#[test]
+/*#[test]
 fn various_parts() {
 
 	let ( user_chan, admin_chan ) = {
@@ -269,4 +209,4 @@ fn various_parts() {
 	let ( p, c ) = oneshot();
 	admin_chan.send( ParTsRelease( c ) );
 	p.recv();
-}
+}*/

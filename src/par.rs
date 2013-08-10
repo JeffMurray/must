@@ -14,6 +14,8 @@
 extern mod std;
 extern mod extra;
 extern mod fit;
+extern mod must;
+use must::{ Must };
 use extra::time::Timespec;
 use fit::{ DoFit, ParFitCommEndChan, ParFitComm, FitComm, FitArgs, FitErrs };
 use std::comm::{ stream, Port, Chan, SharedChan, ChanOne, oneshot };
@@ -50,12 +52,12 @@ struct Par {
 }
 
 enum ParInComm {
-	ParTrans( ~FitArgs, ChanOne<FitOutcome> ), // ( t_key, args )
+	ParTrans( ~FitArgs, ~Must, ChanOne<FitOutcome> ), // ( args, t_key, chan )
 	ParCommEndChan( ChanOne<()> )
 }
 
 enum SpawnComm {
-	SpawnDoFit( ~FitArgs, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<()>, uint ) // args, fit_chan, home_chan, good_by_chan, spawns
+	SpawnDoFit( ~FitArgs, ~Must, SharedChan<ParFitComm> , ChanOne<FitOutcome>, SharedChan<()>, uint ) // args, t_key, fit_chan, home_chan, good_by_chan, spawns
 }
 
 struct FitOutcome {
@@ -99,12 +101,12 @@ impl Par {
 	
 		let (in_port, in_chan): ( Port<SpawnComm>, Chan<SpawnComm>) = stream();
 		do spawn {
-			match in_port.recv()  {
-				SpawnDoFit( args, fit_chan, home_chan, par_chan, spawns ) => {
+			match in_port.try_recv().expect("par.rs g7wb0nQEtNVLlCMQ") {
+				SpawnDoFit( args, t_key, fit_chan, home_chan, par_chan, spawns ) => {
 					let start = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let ( p, c ) = oneshot();
-					fit_chan.send( DoFit( copy args, c ) );
-					let outcome =  p.recv();
+					fit_chan.send( DoFit( copy args, copy t_key, c ) );
+					let outcome =  p.try_recv().expect("par.rs dlqn8QjzHFQNbBr5");
 					let end = extra::time::at_utc( extra::time::get_time() ).to_timespec();
 					let mut sec_diff = end.sec - start.sec;
 					let mut nsec_diff = end.nsec - start.nsec;
@@ -145,23 +147,22 @@ impl Par {
 							yield();
 						},
 						RecvGoodByPort => {
-							good_by_port.recv(); // spawn is saying good-by
+							good_by_port.try_recv().expect("par.rs  5T24V2yzQfVZd7sw"); // spawn is saying good-by
 							current_spawns -= 1;	
 						},
 						RecvInPort => {
-							let new_req = in_port.recv();
+							let new_req = in_port.try_recv().expect("par.rs  NFZjeAbPep9Gx9r5");
 							match new_req {
-								ParTrans(  args, home_chan ) => {
+								ParTrans(  args, t_key, home_chan ) => {
 									current_spawns += 1;
 									let spawn_chan = Par::go();
-									spawn_chan.send( SpawnDoFit( args, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
+									spawn_chan.send( SpawnDoFit( args, t_key, fit_ch.clone(), home_chan, good_by_chan.clone(), current_spawns ) );
 								}
 								ParCommEndChan( ack_chan ) => {
 									while current_spawns > 0 {
-										good_by_port.recv(); // spawn is saying good-by
+										good_by_port.try_recv().expect("par.rs  mdnXvERN553g60zA"); // spawn is saying good-by
 										current_spawns -= 1;	
 									}
-
 									fit_ch.send( ParFitCommEndChan );
 									ack_chan.send( () );
 									break_again = true;

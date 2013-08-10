@@ -17,8 +17,6 @@ use std::hashmap::HashMap;
 
 //  I'm leaving this with a long name like bootstrap to remind me how 
 //	how badly I need to move these to a settings file :)
-//	I'm considering naming the settings file BS, but maybe that is 
-//	just the mood I am in.
 
 //	Low Level JSON Specifications for JahSpecs, Rules and Errors that 
 //	need to be used prior to the master b+tree being up and running **
@@ -57,6 +55,7 @@ impl Bootstrap {
 			~"cb2jMrSLSf72526W" => { Bootstrap::spec_append_slice() }
 			~"TqXOr3DcqolwQavT" => { Bootstrap::spec_stored_doc() }
 			~"H4rthuJ99hvwg8FZ" => { Bootstrap::fit_errs() }
+			~"l79xpsPDlugK29zC" => { Bootstrap::reply_error_trace_info_spec() }
 			_ => { Bootstrap::spec_jah_spec_corrupt() }	
 		}
 	}
@@ -66,14 +65,17 @@ impl Bootstrap {
 	pub fn err_fit_key() -> ~str { ~"Zbh4OJ4uE1R1Kkfr" }  // ErrFit
 	pub fn doc_slice_prep_key() -> ~str { ~"6Ssa58eFrC5Fpmys" }  // DocSlicePrep
 	pub fn file_get_slice_key() -> ~str { ~"GwldCnkeG6FvjMiL" }  // FileGetSlice
-	
-	//	**Requests that can be sent before the document system is up and running **
-	 	 
-	 // ** Errors that can be generated before the document system is up and running **
-	
-	//	When an arg is sent that does not conform to the "allowed" arg list
-	// 	this error document is reported.
+	pub fn stately_tester_key() -> ~str { ~"jjqx6UUgRaSN14PH" }  // StatelyTester
+	// Part Rule Keys
+	pub fn part_key_added_twice_key() -> ~str {
 		
+		~"zz2Weg3mpAbj3Equ"		
+	}	
+	
+	// ********** Strands **************
+	pub fn must_start_strand() -> ~str { ~"UWmoVWUMfKsL8oyr" } 
+	pub fn stately_tester_strand() -> ~str { ~"tuUZAYq5uby19tYG" }  
+	
 	pub fn fit_sys_err( args: ~Object, sys_text: ~str, fit_key: ~str, file_name: ~str, line_key: ~str ) -> ~Object {
 	
 		let mut err = ~HashMap::new();		
@@ -677,6 +679,19 @@ impl Bootstrap {
 		spec
 	}	
 	
+	pub fn reply_error_trace_info_spec() -> ~Object { 
+	 
+		let mut spec = ~HashMap::new();
+		let mut allowed = ~HashMap::new();
+		allowed.insert( ~"err_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"file_name", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"line_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );		
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::reply_error_trace_info_key() ) );
+		spec
+	 } 
+	 
 	// A gallery holds holds holds either a tunnel ore a chamber for each key that it holds.
  	pub fn lurker_gallery_spec_key() -> ~str {
 	 	

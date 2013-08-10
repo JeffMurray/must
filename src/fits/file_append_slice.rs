@@ -20,7 +20,7 @@ extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
 use std::io::{ SeekEnd, BytesWriter };
-use std::comm::{ stream, Port, Chan, oneshot, recv_one }; // oneshot and recv_one are used in unit tests
+use std::comm::{ stream, Port, Chan, oneshot }; // oneshot is used in unit tests
 use extra::json::{ Object, ToJson, PrettyEncoder, String };//,Number, Json , List
 use bootstrap::{ Bootstrap };
 use extra::serialize::Encodable;
@@ -41,11 +41,6 @@ pub struct FileAppendSlice {
 	
 impl Parfitable for FileAppendSlice {
 
-	pub fn new( settings: ~Object ) -> ~FileAppendSlice {
-	
-		~FileAppendSlice { file_args: settings }
-	}
-	
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
 		let ( in_port, in_chan ) = stream();
@@ -72,7 +67,7 @@ impl JahSpeced for FileAppendSlice {
 	
 	fn spec_keys_out( &self ) -> ~[~str] {
 	
-		~[Bootstrap::spec_file_append_result_key()]
+		~[Bootstrap::spec_file_slice_key()]
 	}
 }
 
@@ -94,28 +89,36 @@ impl FileAppendSlice {
 	    			( file_path, file_num )
 	    		}
 	    		Err( fit_sys_errs ) => { 
-	    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
+	    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_slice.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
 	    		}
     		}};
-    	println( file_path );
     	let path = Path( file_path );
     	let spec = Bootstrap::find_spec( Bootstrap::spec_add_doc_key() );
 		if JahSpec::spec_key(&spec) != Bootstrap::spec_add_doc_key()  {
-			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_json.rs", ~"cSCDVSNDFpLOSwDz") ) );
-		}				
+			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_slice.rs", ~"cSCDVSNDFpLOSwDz") ) );
+		}
+		{	//checking file opening abilities before establishing a spawned channel
+			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
+			let file_reader_rslt = std::io::file_reader( &path );
+			if append_writer_rslt.is_err() {
+				return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args , copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"zc9sQbV5cvyhYOUD" ) ) );			  				
+			} else if file_reader_rslt.is_err() {
+				return  Err(  FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"tUMNwzzD2qFXXomQ" ) ) );			  				
+			}
+		}
 		do spawn {	
 			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
 			let file_reader_rslt = std::io::file_reader( &path );
 			if append_writer_rslt.is_err() {
-				match in_port.recv() {  //send the error to the first thing that communicates
-		  			DoFit( args, home_chan ) => {
-		  				home_chan.send( FitSysErr( FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"aP5FFu7dV0xNr4MZ" ) ) ) );			  				
+				match in_port.try_recv().expect("file_append_slice 1") {  //send the error to the first thing that communicates
+		  			DoFit( args, _, home_chan ) => {
+		  				home_chan.send( FitSysErr( FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"aP5FFu7dV0xNr4MZ" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else if file_reader_rslt.is_err() {
-				match in_port.recv() {
-		  			DoFit( args, home_chan ) => {
-		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"Ov1duvNzsrX9syZb" ) ) ) );			  				
+				match in_port.try_recv().expect("file_append_slice 2") {
+		  			DoFit( args, _, home_chan ) => {
+		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"Ov1duvNzsrX9syZb" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else {
@@ -126,11 +129,11 @@ impl FileAppendSlice {
 					//its managing implementations should insure this.
 					//We will not spawn, except when sending replies to insure 
 					//appends to this file are sequential.
-					match in_port.recv() {
+					match in_port.try_recv().expect("file_append_slice 3") {
 						ParFitCommEndChan => {
 							break;
 						},
-			  			DoFit( args, home_chan ) => {
+			  			DoFit( args, _, home_chan ) => {
 			  				if args.attach.len() == 0 {
 		  						home_chan.send( FitErr ( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) );
 		  					} else {
@@ -179,7 +182,7 @@ impl FileAppendSlice {
 		match JahSpec::check_args( &self.arg_out(), &self.file_args ) {
 			Ok( _ ) => { }
 			Err( errs ) => {
-				return Err( ~[Bootstrap::reply_error_trace_info(~"file_append_json.rs", ~"rx9vMuM19wlGvMm2" )] + errs );
+				return Err( ~[Bootstrap::reply_error_trace_info(~"file_append_slice.rs", ~"rx9vMuM19wlGvMm2" )] + errs );
 			}
 		}
 		// Since args has passed a spec check, I am pretty confident using .get()		
@@ -217,19 +220,17 @@ fn test_write_and_read() {
 	args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String( Bootstrap::spec_stored_doc_key() ).to_json() );
-	
 	let bw = @BytesWriter::new();
 	let mut encoder = PrettyEncoder( bw as @Writer );
 	args.to_json().encode( &mut encoder );				
 	bw.flush();	
 	let mut r_doc = ~HashMap::new();
 	r_doc.insert( ~"attach", String(~"doc").to_json() );
-	r_doc.insert( ~"spec_key", String( Bootstrap::spec_append_slice_key() ).to_json() );
-	
+	r_doc.insert( ~"spec_key", String( Bootstrap::spec_append_slice_key() ).to_json() );	
 	let rval = {
 		match { let ( p, c ) = oneshot();
-			fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( doc, copy *bw.bytes ), c ) );
-			recv_one( p )
+			fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( doc, copy *bw.bytes ), ~Must::new(), c ) );
+			p.recv()
 		} {
 			FitOk( rval ) => {
 				fit_chan.send ( ParFitCommEndChan );

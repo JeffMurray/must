@@ -42,11 +42,6 @@ pub struct DocSlicePrep {
 }
 	
 impl Parfitable for DocSlicePrep {
-
-	pub fn new( settings: ~Object ) -> ~DocSlicePrep {
-	
-		~DocSlicePrep { settings: settings }
-	}
 	
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
@@ -83,9 +78,9 @@ impl DocSlicePrep {
 		do spawn {
 			let ( p, c ) = oneshot();
 			home.send( c );
-			let parfit_comm : ParFitComm =  p.recv();
+			let parfit_comm : ParFitComm =  p.try_recv().expect("doc_slice_prep 1");
 			match parfit_comm {
-				DoFit( fit_args, home_chan ) => {
+				DoFit( fit_args, _, home_chan ) => {
 					let mut doc = fit_args.doc;
 					//we are guaranteed here to have the first layer of properties checked
 					//so I am calling get()
@@ -143,14 +138,14 @@ impl DocSlicePrep {
 			loop {
 				let ( sp, sc ) = stream();
 				let sc = SharedChan::new( sc );
-				let parfit_comm = in_port.recv();
+				let parfit_comm = in_port.try_recv().expect("doc_slice_prep 2");
 				match parfit_comm {
 					ParFitCommEndChan => {
 						break;
 					},
 					_ => {
 						DocSlicePrep::spawn_and_read( sc.clone() );
-						sp.recv().send( parfit_comm );
+						sp.try_recv().expect("doc_slice_prep 3").send( parfit_comm );
 		  			}
 				}	
 			}
@@ -188,9 +183,9 @@ fn append_doc() {
 		args.insert( ~"spec_key", String( Bootstrap::spec_jah_spec_corrupt_key() ).to_json() );
 		let ( p, c ) = oneshot();
 		//check the wrong spec_key
-		par_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c ) );
+		par_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), ~Must::new(), c ) );
 		
-		let outcome = p.recv();
+		let outcome = p.try_recv().expect("doc_slice_prep 4");
 		
 		match outcome.outcome {
 			FitOk( _ ) => { fail!(); } 
@@ -208,8 +203,8 @@ fn append_doc() {
 		args.insert( ~"doc", doc.to_json() );
 		args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 		let ( p, c ) = oneshot();
-		par_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), c ) );
-		let outcome = p.recv();
+		par_chan.send( ParTrans( ~FitArgs::from_doc( copy args ), ~Must::new(), c ) );
+		let outcome = p.try_recv().expect("doc_slice_prep 7");
 		match outcome.outcome {
 			FitOk( fit_args ) => {
 				match extra::json::from_str( from_bytes_owned( fit_args.attach ) ) {
@@ -242,6 +237,6 @@ fn append_doc() {
 		
 	let ( p, c ) = oneshot();
 	par_chan.send( ParCommEndChan( c ) );
-	p.recv();
+	p.try_recv().expect("doc_slice_prep 6");
 }
 

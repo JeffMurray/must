@@ -23,7 +23,7 @@ extern mod file_append_slice;
 use extra::serialize::Encodable;
 use file_append_slice::{ FileAppendSlice };
 use std::io::{ SeekSet, BytesWriter };
-use std::comm::{ SharedChan, stream, Port, Chan, ChanOne, oneshot, recv_one };
+use std::comm::{ SharedChan, stream, Port, Chan, ChanOne, oneshot };
 use extra::json::{ Object, ToJson, String, PrettyEncoder }; 
 use bootstrap::{ Bootstrap };
 use std::hashmap::HashMap;
@@ -40,11 +40,6 @@ pub struct FileGetSlice {
 	
 impl Parfitable for FileGetSlice {
 
-	pub fn new( settings: ~Object ) -> ~FileGetSlice {
-	
-		~FileGetSlice { file_args: settings }
-	}
-	
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
 		let ( in_port, in_chan ) = stream();
@@ -80,9 +75,9 @@ impl FileGetSlice {
 		do spawn {
 			let ( p, c ) = oneshot();
 			home.send( c );
-			let ( fit_key, path_str, parfit_comm ): ( ~str, ~str, ParFitComm ) =  p.recv();
+			let ( fit_key, path_str, parfit_comm ): ( ~str, ~str, ParFitComm ) =  p.try_recv().expect("file_get_slice 1");
 			match parfit_comm {
-				DoFit( fit_args, home_chan ) => {
+				DoFit( fit_args, _, home_chan ) => {
 					let path = Path( path_str );
 					let file_reader_rslt = std::io::file_reader( &path );
 					if file_reader_rslt.is_err() {
@@ -118,13 +113,13 @@ impl FileGetSlice {
 	    			( file_path, file_num )
 	    		}
 	    		Err( fit_sys_errs ) => { 
-	    			return Err( fit_sys_errs.prepend_err( Bootstrap::reply_error_trace_info( ~"file_append_json.rs", ~"eUZCAcGIlfzXEsJi" ) ) );
+	    			return Err( fit_sys_errs.prepend_err( Bootstrap::reply_error_trace_info( ~"file_get_slice.rs", ~"Pj3l7Xw3UHVRjiqv" ) ) );
 	    		}
     		}};
 		//I open reader at the beginning while I can still deny the communication channel ;)
 		let file_reader_rslt = std::io::file_reader( &Path( copy file_path ) );
 		if file_reader_rslt.is_err() {
-	  		return Err( FitErrs::from_object( Bootstrap::fit_sys_err( ~HashMap::new(), copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_json.rs", ~"YXoR14QfuczXLyeh" ) ) );			  				
+	  		return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"YXoR14QfuczXLyeh" ) ) );			  				
 		}
     	//At the point of writing this, I do not fully understand the pro's and con's
     	//related to spawning and opening a new reader every time a slice is read.
@@ -133,8 +128,8 @@ impl FileGetSlice {
 			let path = Path( copy file_path );
 			let file_reader_rslt = std::io::file_reader( &path );
 			if file_reader_rslt.is_err() {
-				match in_port.recv() {
-		  			DoFit( _ , home_chan ) => {
+				match in_port.try_recv().expect("file_get_slice 2") {
+		  			DoFit( _, _, home_chan ) => {
 		  				home_chan.send( FitErr( FitErrs::from_object( Bootstrap::fit_sys_err( ~HashMap::new() , copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"5kQeNVLDkteS1c2w" ) ) ) );			  				
 		  			} _ => {}
 		  		}
@@ -142,14 +137,14 @@ impl FileGetSlice {
 				loop {
 					let ( sp, sc ) = stream();
 					let sc = SharedChan::new( sc );
-					let parfit_comm = in_port.recv();
+					let parfit_comm = in_port.try_recv().expect("file_get_slice 3");
 					match parfit_comm {
 						ParFitCommEndChan => {
 							break;
 						},
 						_ => {
 							FileGetSlice::spawn_and_read( sc.clone() );
-							sp.recv().send(( copy fit_key, copy file_path, parfit_comm ));
+							sp.try_recv().expect("file_get_slice 4").send(( copy fit_key, copy file_path, parfit_comm ));
 			  			}
 					}	
 				}
@@ -214,7 +209,6 @@ fn test_write_and_read() {
 		args.insert( ~"must", Must::new().to_json() );	
 		args.insert( ~"doc", doc.to_json() );
 		args.insert( ~"spec_key", String( Bootstrap::spec_stored_doc_key() ).to_json() );
-		
 		let mut r_doc = ~HashMap::new();
 		r_doc.insert( ~"attach", String(~"doc").to_json() );
 		r_doc.insert( ~"spec_key", String( Bootstrap::spec_append_slice_key() ).to_json() );
@@ -224,8 +218,8 @@ fn test_write_and_read() {
 		bw.flush();						
 		let rval = {
 			match { let ( p, c ) = oneshot();
-				fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( r_doc, copy *bw.bytes ), c ) );
-				recv_one( p )
+				fit_chan.send( DoFit( ~FitArgs::from_doc_with_attach( r_doc, copy *bw.bytes ), ~Must::new(), c ) );
+				p.recv()
 			} {
 				FitOk( rval ) => {
 					fit_chan.send ( ParFitCommEndChan );
@@ -268,8 +262,8 @@ fn test_write_and_read() {
 	
 	let rval = { 
 		match { let ( p, c ) = oneshot();
-			fit_chan.send( DoFit( copy slice_args, c ) );
-			recv_one( p )
+			fit_chan.send( DoFit( copy slice_args, ~Must::new(), c ) );
+			p.recv()
 		} {
 			FitOk( rval ) => {
 				fit_chan.send ( ParFitCommEndChan );

@@ -18,7 +18,7 @@ extern mod bootstrap;
 extern mod jah_args;
 use std::rand::{RngUtil, rng};
 use std::to_str::{ToStr};
-use extra::json ::{Json,Object,ToJson};
+use extra::json::{ Json, Object, ToJson, String, Number };
 use std::hashmap::HashMap;
 use bootstrap::Bootstrap;
 use jah_args::{ JahArgs, MissingKey, WrongDataType };
@@ -80,6 +80,15 @@ impl Must{
 			sec: t.sec,
 			nsec: t.nsec
 		}
+	}
+	
+	pub fn to_obj( &self ) -> ~Object {
+		
+		let mut obj = ~HashMap::new();
+		obj.insert( ~"key", String( copy self.key ).to_json() );
+		obj.insert( ~"sec", Number( self.sec.to_float() ).to_json() );
+		obj.insert( ~"nsec", Number( self.nsec.to_float() ).to_json() );
+		obj
 	}
 	
 	//	Takes the must in json form and converts it to a Must

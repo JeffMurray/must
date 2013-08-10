@@ -14,35 +14,34 @@
 
 extern mod std;
 extern mod extra;
-extern mod jah_spec;
-extern mod jah_args;
-extern mod par;
 extern mod fit;
+extern mod fits;
 extern mod bootstrap;
-extern mod strand;
 extern mod must;
 extern mod parts;
-use jah_args::{ JahArgs, MissingKey, WrongDataType };
-use jah_spec::{ JahSpec };
-use par::{ FitOutcome, ParTrans };
-use fit::{ FitOk, FitErr, FitSysErr, FitErrs, FitArgs };
-use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT,  GetParTChan, ParTChan, ParTErr, ParTsRelease };
+extern mod transcriptor;
+extern mod stately;
+//extern mod jah_args;
+//use jah_args::{ JahArgs };
+use stately::{ StateServ, LoopOutComm, StatelyRelease };
+use fits::{ Fits };
+use transcriptor::{ Transcriptor };
+use fit::{ FitErrs, FitArgs };
+use parts::{ ParTs, ParTInComm, ParTInAdminComm, AddParT, ParTsRelease };
 use must::{ Must };
-use strand::{ Ribosome, DoFit, NextErr, NextOk, EndOfStrand, LogicErr, GetArgStr, LogicInComm };
-use extra::json::{ Object, String, ToJson, Json }; // , to_pretty_str
+use extra::json::{ Object, String, ToJson }; 
 use bootstrap::{ Bootstrap };
 use std::comm::{ oneshot, ChanOne, stream, SharedChan };
 use std::hashmap::HashMap;
 use std::task::{ spawn, yield };
+use std::io::{ stdin, ReaderUtil };
 
 struct MustBank;
 
 enum MustBankInComm {
-	MBTranscript( ~Object, ChanOne<Result< ~Object, ~FitErrs >> ), // args, Result( trans_key info ) or Err info 
+	MBTranscript( ~str, ~Object, ChanOne<Result< ~Object, ~FitErrs >> ), // strand_key, args, Result( trans_key info ) or Err info 
 	MBRelease( ChanOne<()> ) //( ack_chan )
 }
-
-struct Transcriptor;
 
 impl MustBank {
 	
@@ -53,12 +52,24 @@ impl MustBank {
 		Ok( chan )
 	}
 	
-	priv fn loop_in_spawn( port: Port< MustBankInComm > ) {
+	priv fn loop_in_spawn( port: Port< MustBankInComm > )  {
 	
 		do spawn {
-			match MustBank::load_parts() {  //leaving the warning to remind me to tidy this up
-				Ok(( user_parts_chan, admin_parts_chan )) => {
-					let user_parts_chan = SharedChan::new( user_parts_chan );
+		
+			let ( parts_chan, parts_admin_chan ) = {
+				match ParTs::connect() {
+					Ok(( parts_chan, parts_admin_chan )) => {
+						( parts_chan, parts_admin_chan )
+					}
+					Err( err ) => {
+						// I have not written the rs that this would report to
+						println( err.prepend_err( Bootstrap::reply_error_trace_info(~"must_bank.rs", ~"ipHe17fctVPegreA") ).to_str() );
+						fail!();
+					}
+				}};
+			let stately_chan = SharedChan::new( StateServ::connect( parts_chan.clone() ) );
+			match MustBank::load_parts( stately_chan.clone(), parts_admin_chan.clone() ) {  
+				Ok( _ ) => {
 					let ( goodby_port, goodby_chan ) = stream();
 					let goodby_chan = SharedChan::new( goodby_chan );
 					let mut t_count = 0u;
@@ -70,26 +81,38 @@ impl MustBank {
 								( port.peek(), goodby_port.peek() )
 							}};
 						if recv_trans {
-							match port.recv() {
-								MBTranscript( args, chan_one ) => {
+							match port.try_recv().expect( "must_bank.rs NW8YXw4Pkxl9WtKk" ) {
+								MBTranscript( strand_key, args, chan_one ) => {
 									t_count += 1;
-									Transcriptor::connect( ~"UWmoVWUMfKsL8oyr").send( ( args, chan_one, user_parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key )  the kickoff strand for new requests
+									let t_key = Must::new();
+									Transcriptor::connect( strand_key, copy t_key ).send( ( ~FitArgs::from_doc( args ), parts_chan.clone(), goodby_chan.clone() ) );  // ( strand_key, t_key )  the kickoff strand for new requests
+									chan_one.send( Ok( t_key.to_obj() ) );
 								}
 								MBRelease( ack_chan ) => {
-									while t_count > 0 { //TODO: put a timeout here?
-										goodby_port.recv();
+									println( "checking t_count" );
+									while t_count > 0 {
+										goodby_port.try_recv().expect( "must_bank.rs 5twBBIomSNA5JFeN" );
 										t_count -= 1;
 									}
+									println( "releasing stately" );
+									stately_chan.send( StatelyRelease );
+									
+									println( "releasing parts" );
 									let ( p, c ) = oneshot();
-									admin_parts_chan.send( ParTsRelease( c ) );
-									p.recv(); // waiting for Ack
+									parts_admin_chan.send( ParTsRelease( c ) );
+									p.try_recv().expect( "must_bank.rs ifYVoW38bDAYRDeZ" ); // waiting for Ack
 									ack_chan.send(());
 									break;
 								}
 							}
 						}
 						if recv_goodby {
-							goodby_port.recv();
+							match goodby_port.try_recv().expect( "must_bank.rs Jen1sH2LNXOjxnfd" ) {	//the submiter already has their key and is long gone
+								Ok( _ ) => {}
+								Err( fit_errs ) => {
+									println( fit_errs.to_str() );
+								}
+							}
 							t_count -= 1;
 						}
 						if !( recv_trans || recv_goodby ) {
@@ -97,260 +120,71 @@ impl MustBank {
 						}
 					}					
 				}
-				Err( _ ) => {
-					fail!(); //yuck here for now :( I'm guessing this is rare but leaving warning to keep the issue open in my mind
+				Err( fit_errs ) => {
+					println( fit_errs.to_str() ); fail!();
 				}
 			}			
 		}		
 	}
 
-	priv fn load_parts() -> Result<( Chan<ParTInComm>, Chan<ParTInAdminComm> ), ~FitErrs> {
+	priv fn load_parts( stately_chan: SharedChan<LoopOutComm>, parts_admin_chan: SharedChan<ParTInAdminComm> ) -> Result<bool, ~FitErrs> {
+
+		match MustBank::load_par( Bootstrap::err_fit_key(), 20u, stately_chan.clone(), parts_admin_chan.clone()  ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
+		}
+		match MustBank::load_par( Bootstrap::doc_slice_prep_key(), 20u, stately_chan.clone(), parts_admin_chan.clone()  ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
+		}
+		match MustBank::load_par( Bootstrap::file_append_slice_key(), 20u, stately_chan.clone(), parts_admin_chan.clone()  ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
+		}
+		match MustBank::load_par( Bootstrap::file_get_slice_key(), 20u, stately_chan.clone(), parts_admin_chan.clone() ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
+		}
+		match MustBank::load_par( Bootstrap::stately_tester_key(), 20u, stately_chan.clone(), parts_admin_chan.clone()  ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
+		}		
+		Ok( true )	
+	}
 	
-		let ( user_chan, admin_chan ) = {
-			match ParTs::connect() {
-				Ok(( user_chan, admin_chan )) => {
-					( user_chan, admin_chan )
+	priv fn load_par( reg_key: ~str, spawn_cap: uint, stately_chan: SharedChan<LoopOutComm>, admin_chan: SharedChan<ParTInAdminComm> ) -> Result<bool, ~FitErrs> {
+	
+		let fit_chan = {
+			match Fits::make_fit( copy reg_key, stately_chan ) {
+				Ok( fit_chan ) => {
+					fit_chan
 				}
-				Err( err ) => {
-					return Err( err.prepend_err( Bootstrap::reply_error_trace_info(~"must_bank.rs", ~"ipHe17fctVPegreA") ) );
+				Err( errs ) => {
+					return Err( errs );	
 				}
 			}};
-		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT( Bootstrap::file_append_slice_key(), c ) );  //FileAppendSlice
-				p.recv()
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
+		let ( p, c ) = oneshot();
+		admin_chan.send( AddParT( copy reg_key, spawn_cap, fit_chan, c ) );
+		match p.try_recv().expect( "must_bank.rs k2LXIJG5s0NMN2zA" ) {
+			Ok( _ ) => {}
+			Err( errs ) => {
+				return Err( errs );
+			}
 		}
-		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT( Bootstrap::err_fit_key(), c ) );  // ErrFit
-				p.recv()
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
-		}
-		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT( Bootstrap::doc_slice_prep_key(), c ) );  // DocSlicePrep
-				p.recv()
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
-		}
-		match {	let ( p, c ) = oneshot();
-				admin_chan.send( AddParT(  Bootstrap::file_get_slice_key(), c ) );  // FileGetSlice
-				p.recv()
-			} {
-				Ok( _ ) => {}
-				Err( _ ) => { fail!(); }
-		}
-		
-		Ok(( user_chan, admin_chan ))
+		Ok( true )
 	}
 }
 
-impl Transcriptor {
-
-	fn connect( kickoff_strand_key: ~str ) -> Chan<((~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>))> {
-	
-		let ( start_port, start_chan ) = stream();
-		do spawn {
-			let kickoff_strand_key = copy kickoff_strand_key;	
-			let ( args, home_chan_one, parts_chan, goodby_chan ): (~Object, ChanOne<Result< ~Object, ~FitErrs >>, SharedChan<ParTInComm>, SharedChan<int>) = start_port.recv();
-			let t_key = Must::new();
-			home_chan_one.send(  Ok( Transcriptor::make_t_key( copy t_key ) ) );
-			let mut arg_bank: ~HashMap<~str, Json> = args; 
-			let mut attached: ~HashMap<~str, ~[u8]>  = ~HashMap::new();
-			let ( rib_port, rib_chan ) = Ribosome::connect( kickoff_strand_key );
-			loop {
-				match rib_port.recv()  {
-					GetArgStr( key, chan ) => {
-						match arg_bank.get_str( key ) { 
-							Ok( val ) => {
-								chan.send( Some( val ) );
-							}
-							Err( _ ) => {
-								chan.send( None );
-							}
-						}
-					}
-					LogicErr( err ) => { //an important function of the transcriptor is to dutifully report and log these errors, but indexing needs to be up and running to do that
-						std::io::println( extra::json::to_pretty_str(&(err.to_json())));break; //  <- temp band-aid
-					} 
-					EndOfStrand	=> { 
-						break; 
-					}
-					DoFit( reg_key ) => { 
-						match Transcriptor::do_fit( reg_key, &mut arg_bank , &mut attached, parts_chan.clone() ) {
-							Ok( signal ) => {
-								rib_chan.send( signal );
-							}
-							Err( errs ) => {
-								//The fid did not even get called if we are here
-								println( errs.to_str() );  
-								break;
-							}
-						}
-					}
-				}
-			}
-			goodby_chan.send(1i);	
-		}
-		start_chan
-	}
-	
-	priv fn do_fit( reg_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]>, parts_chan: SharedChan<ParTInComm> ) -> Result<LogicInComm, ~FitErrs>  {
-	
-		let spec_key = { //get the latest spec that was loaded in the arg bank
-			match arg_bank.get_str( ~"spec_key" ) {
-				Ok( spec_key ) => { spec_key }
-				Err( err ) => {
-					match err {
-						MissingKey => {
-							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"0vKBkZjRUMVei1QX", ~"must_bank.rs" ) ) )
-						}
-						WrongDataType => {
-							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"QyKtHrBE8GXB0WEf", ~"must_bank.rs" ) ) )
-						}
-					}
-				} 
-			}};
-		let args = { 
-			match Transcriptor::speced_arg_excerpt( &Bootstrap::find_spec( spec_key ), arg_bank, attached, copy reg_key ) {
-				Ok( args ) => { args }													  
-				Err( errs ) => {
-					return Err( errs.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
-				}
-			}};										
-		// get the Par chan and send args
-		let fo: FitOutcome = {
-			match { let ( p, c ) = oneshot();
-				parts_chan.send( GetParTChan( copy reg_key, c ) ); // ChanOne<ParTOutComm>
-				p.recv()
-				} {	ParTChan( part_chan ) => { // ( part_chan ) ChanOne<ParInComm>
-						let ( p2, c2 ) = oneshot();
-						part_chan.send( ParTrans( args, c2 ) ); // ChanOne<ParTOutComm>
-						p2.recv()
-					} 
-					ParTErr( err ) => {
-						return Err( err.prepend_err( Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"P590aja1zCctfAVJ" ) ) );
-					}
-			}};
-		// Record the fit performance once the indexing system is up and running
-		// update the arg_bank
-		match copy fo.outcome {
-			FitOk( rval ) => {
-				match rval.doc.get_str( ~"spec_key" ) {
-					Ok( key ) => {
-						match JahSpec::check_args( &Bootstrap::find_spec( key ), &rval.doc ) {
-							Ok( _ ) => {
-								Transcriptor::merge_args( &rval, reg_key, arg_bank, attached );
-								Ok( NextOk )					
-							}
-							Err( errs ) => {
-								let fit_errs = FitErrs::from_objects( errs);
-								Transcriptor::merge_args( &~FitArgs::from_doc( fit_errs.to_args() ), reg_key, arg_bank, attached );
-								Ok( NextOk )								
-							}
-						}
-					}
-					Err( err_type ) => {
-						let errs = {
-							match err_type {
-								MissingKey => {
-									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"must_bank.rs" ) )
-								}
-								WrongDataType => {
-									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"must_bank.rs" ) )
-								}
-							}};
-						Transcriptor::merge_args( &~FitArgs::from_doc( errs.to_args() ), reg_key, arg_bank, attached );
-						Ok( NextErr )														
-					}
-				}
-			}
-			FitErr( rval ) => {
-				let doc = rval.to_args();
-				//println( to_pretty_str( &Object( copy doc ).to_json() ) );
-				Transcriptor::merge_args( &~FitArgs::from_doc( doc ), reg_key, arg_bank, attached );
-				Ok( NextErr )
-			}
-			FitSysErr( err ) => {
-				Err( err )
-			}
-		}			
-	} 
-	
-	priv fn merge_args( args: &~FitArgs, fit_key: ~str, arg_bank: &mut ~Object, attached: &mut ~HashMap<~str, ~[u8]> ) {
-
-		let keys = args.doc.arg_keys();
-		for keys.iter().advance | key | {
-			if arg_bank.contains_key( key ) {
-				arg_bank.remove( key );
-			}
-			arg_bank.insert( copy *key, args.doc.get_json_val( copy *key ).to_json() );	
-		}
-		match args.doc.get_str( ~"attach" ) {
-			Ok( atch_name ) => {
-				if attached.contains_key( &atch_name ) {
-					attached.remove( &atch_name );
-				}
-				attached.insert(  atch_name, copy args.attach );	
-				
-			} _ => {}
-		}
-	}		
-		
-	priv fn speced_arg_excerpt( spec: &~Object, arg_bank: &~HashMap<~str, Json>, attached: &~HashMap<~str, ~[u8]>, reg_key: ~str )-> Result<~FitArgs, ~FitErrs> {
-		
-		let mut rval = ~HashMap::new();
-		let keys = { 
-			match JahSpec::allowed_keys( spec ) {
-				Ok( keys ) => { keys } 
-				Err( err ) => { return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"RqTr8enRtmwjwWrf" )] + err ) ) }
-				}};
-		for keys.iter().advance | key | {
-			match arg_bank.find( key ) {
-				Some( arg_val ) => { 
-					rval.insert( copy *key, copy *arg_val );
-				}
-				None => {}  // leaving the ramifications of this missing arg to the upcomming spec check	
-			}
-		}
-		let attch = {
-			match JahSpec::check_args( spec, &rval  ) {
-				Ok( _ ) => {
-					match rval.get_str(~"attach") {
-						Ok( attached_name ) => {
-							match attached.find( &attached_name ) {
-								Some( attached_bytes ) => {
-									copy *attached_bytes
-								}
-								None => {
-									return Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), attached_name, ~"Kyzltdf11TRcTIiI", ~"must_bank.rs" ) ) )
-								}
-							}
-						}
-						Err( _ ) => { //  not really an error, just no need to send an attachment
-							~[]
-						}
-					}
-				}
-				Err( errs ) => {
-					return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"must_bank.rs", ~"FHLGfPficrDnNzao" )] + errs ) );
-				}	
-			}};
-		Ok( ~FitArgs{ doc: rval, attach: attch } )
-	}	
-			
-	//t = transcription.
-	priv fn make_t_key( t_key: Must ) -> ~Object {
-	
-		let mut rval= ~HashMap::new();
-		rval.insert( ~"t_key", t_key.to_json() );
-		rval.insert( ~"spec_key", String( ~"CelvpCNzHNiPPUKL" ) );		
-		rval
-	}
-}
 
 #[test]
 fn add_document_strand() {
@@ -380,12 +214,12 @@ fn add_document_strand() {
 			let mut args = ~HashMap::new();
 			args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 			args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-			args.insert( ~"must", Must::new().to_json() );	
+			//args.insert( ~"must", Must::new().to_json() );	
 			args.insert( ~"doc", doc.to_json() );
 			args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
 			let ( p, c ) = oneshot();
-			mbs.send( MBTranscript( args, c ) );
-			match p.recv() {
+			mbs.send( MBTranscript( Bootstrap::must_start_strand(), args, c ) );
+			match p.try_recv().expect( "must_bank.rs MMzO6ygIScG1IhxX" ) {
 				Ok( _ ) => { // immediatly returns a t_key that can be used to get the doc key and so forth
 					//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
 				}
@@ -400,7 +234,7 @@ fn add_document_strand() {
 	//We need to confirm that all the transcriptors get started before calling MBRelease
 	i = 1;
 	while i <= max {
-		port.recv();
+		port.try_recv().expect( "must_bank.rs y1UG1rNTqZs3cSBi" );
 		i += 1;
 	}
 
@@ -409,21 +243,35 @@ fn add_document_strand() {
 	let mut args = ~HashMap::new();
 	args.insert( ~"user", String( ~"va4wUFbMV78R1AfB" ) );
 	args.insert( ~"acct", String( ~"ofWU4ApC809sgbHJ" ) );
-	args.insert( ~"must", Must::new().to_json() );	
+	//args.insert( ~"must", Must::new().to_json() );	
 	args.insert( ~"doc", doc.to_json() );
 	args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
-	let ( p, c ) = oneshot();
-	must_bank_in.clone().send( MBTranscript( args, c ) );
-	match p.recv() {
-		Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
-			//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
+	{
+		let ( p, c ) = oneshot();
+		must_bank_in.clone().send( MBTranscript( Bootstrap::must_start_strand(), copy args, c ) );
+		match p.try_recv().expect( "must_bank.rs fRKSRL9kKz5NFjxf" ) {
+			Ok( _ ) => { // immediatly returns a t_key that can be used (once indexes are up and running) to get the error and so forth
+				//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
+			}
+			Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 		}
-		Err( err ) => {std::io::println( err.to_str() ); fail!(); }
 	}
-						
-	let ( p, c ) = oneshot();
-    must_bank_in.clone().send( MBRelease( c ) );
-	p.recv();  // wait for the ack
-	std::io::println( "reminder: check and delete test.json" );
+	{
+		let ( p, c ) = oneshot();
+		must_bank_in.clone().send( MBTranscript( Bootstrap::stately_tester_strand(), args, c ) );
+		match p.try_recv().expect( "must_bank.rs PPtdwnL2Cjk0jYV9" ) {
+			Ok( _ ) => { 
+				//std::io::println( extra::json::to_pretty_str(&(t_key.to_json())));
+			}
+			Err( err ) => {std::io::println( err.to_str() ); fail!(); }
+		}	
+	}
+	{				
+		let ( p, c ) = oneshot();
+	    must_bank_in.clone().send( MBRelease( c ) );
+	    std::io::println( "waiting for ack" );
+		p.try_recv().expect( "must_bank.rs 67PBqYz6JO2HnV6U" );  // wait for the ack
+		std::io::println( "reminder: check and delete test.json" );
+	}
 }
 

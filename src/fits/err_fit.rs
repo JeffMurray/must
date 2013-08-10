@@ -27,11 +27,6 @@ struct ErrFit {
 }
 	
 impl Parfitable for ErrFit {
-
-	pub fn new( settings: ~Object ) -> ~ErrFit {
-	
-		~ErrFit { settings: settings }
-	}
 	
 	pub fn connect( &self ) -> Result<Chan<ParFitComm>, ~FitErrs> {
 	
@@ -42,9 +37,7 @@ impl Parfitable for ErrFit {
 	
 	pub fn fit_key( &self ) -> ~str {
 	
-		~"EHR6DFySwtSHzlb2" //unique randomly-generated id identifying the code implementing 
-							//the fit.  Hopefully there will be associated documentation in 
-							//the Must Document System
+		~"EHR6DFySwtSHzlb2" 
 	}
 }
 
@@ -52,7 +45,7 @@ impl JahSpeced for ErrFit {
 	
 	fn spec_keys_in( &self ) -> ~[~str] {
 	
-		~[~"qJzMxt6eQV2CgKbr"]
+		~[~"qJzMxt6eQV2CgKbr"] // This is actually never checked, this fit can receive any spec at the moment
 	}
 	
 	fn spec_keys_out( &self ) ->  ~[~str] {
@@ -71,7 +64,7 @@ impl ErrFit {
 		do spawn {	
 			loop {
 				match par_port.recv() {
-		  			DoFit( args, home_chan ) => {
+		  			DoFit( args, _, home_chan ) => {
 		  				println( "<-Error Fit->" );
 		  				println( args.doc.to_pretty_str() );
 		  				let mut r_args = ~HashMap::new();
