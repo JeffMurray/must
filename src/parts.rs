@@ -77,7 +77,7 @@ impl ParTs {
 										result_chan.send( Ok( true ) );
 										println("part added");
 									} else {
-										result_chan.send( Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::part_key_added_twice_key(), ~"reg_key", ~"b2eXWGdcdmEgc5Tu", ~"parts.rs") ) ) );
+										result_chan.send( Err( FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::part_key_added_twice_key(), ~"reg_key", ~"b2eXWGdcdmEgc5Tu", ~"parts.rs") ) ) );
 										println("dup part");
 									}									
 								}
@@ -112,7 +112,7 @@ impl ParTs {
 									ParTs::no_wait_reply( chan.clone() ).send( par_chan_one );
 								}
 								None => {
-									par_chan_one.send( ParTErr( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"Q5jmEpjJ4yNzywjv", ~"parts.rs" ) ) ) );
+									par_chan_one.send( ParTErr( FitErrs::from_obj( Bootstrap::logic_error( Bootstrap::part_does_not_exist(), copy reg_key, ~"Q5jmEpjJ4yNzywjv", ~"parts.rs" ) ) ) );
 								}
 							}
 						}

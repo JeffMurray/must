@@ -37,6 +37,7 @@ all: clean
 	rustc fits/doc_slice_prep.rs --test -o fits/doc_slice_prep-tests -L . -L fits
 	./fits/doc_slice_prep-tests	
 	rustc --lib fits/stately_tester.rs -L .
+	rustc --lib lurker.rs -L .
 	rustc --lib fits/fits.rs -L . -L fits
 	rustc fits/fits.rs --test -o fits/fits-tests -L . -L fits
 	./fits/fits-tests	

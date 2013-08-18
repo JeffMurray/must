@@ -68,12 +68,12 @@ trait Parfitable {
 
 impl FitErrs {
 
-	pub fn from_object( err: ~Object ) -> ~FitErrs {
+	pub fn from_obj( err: ~Object ) -> ~FitErrs {
 	
 		~FitErrs { errs: ~[err] }	
 	}
 	
-	pub fn from_objects( errs: ~[~Object] ) -> ~FitErrs {
+	pub fn from_objs( errs: ~[~Object] ) -> ~FitErrs {
 	
 		~FitErrs { errs: errs }	
 	}
@@ -92,7 +92,7 @@ impl FitErrs {
 		
 		let mut err = ~HashMap::new();		
 		//	The main source of information about rule document that reported on arg_name
-		err.insert( ~"spec_key", String( Bootstrap::fit_errs_key() ).to_json() );
+		err.insert( ~"spec_key", String( Bootstrap::fit_errs_spec_key() ).to_json() );
 		let mut errs = ~[];
 		for self.errs.iter().advance | err | {
 			errs.push( err.to_json() );

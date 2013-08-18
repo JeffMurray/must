@@ -19,12 +19,11 @@ extern mod bootstrap;
 extern mod jah_spec;
 extern mod jah_args;
 extern mod must;
-use std::io::{ SeekEnd, BytesWriter };
+use std::io::{ SeekEnd, BytesWriter, Create, Append };
 use std::comm::{ stream, Port, Chan, oneshot }; // oneshot is used in unit tests
 use extra::json::{ Object, ToJson, PrettyEncoder, String };//,Number, Json , List
 use bootstrap::{ Bootstrap };
 use extra::serialize::Encodable;
-use std::io::{ Create, Append };
 use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitErr, FitSysErr, FitArgs, FitErrs}; //, FitComm, FitTryFail 
 use jah_spec::{ JahSpeced, JahSpec }; 
@@ -89,21 +88,21 @@ impl FileAppendSlice {
 	    			( file_path, file_num )
 	    		}
 	    		Err( fit_sys_errs ) => { 
-	    			return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"file_append_slice.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
+	    			return Err( FitErrs::from_objs( ~[Bootstrap::reply_error_trace_info( ~"file_append_slice.rs", ~"eUZCAcGIlfzXEsJi" )] + fit_sys_errs ) );
 	    		}
     		}};
     	let path = Path( file_path );
     	let spec = Bootstrap::find_spec( Bootstrap::spec_add_doc_key() );
 		if JahSpec::spec_key(&spec) != Bootstrap::spec_add_doc_key()  {
-			return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_slice.rs", ~"cSCDVSNDFpLOSwDz") ) );
+			return Err( FitErrs::from_obj( Bootstrap::fit_sys_err( copy self.file_args, ~"Missing expected key uHSQ7daYUXqUUPSo", copy fit_key, ~"file_append_slice.rs", ~"cSCDVSNDFpLOSwDz") ) );
 		}
 		{	//checking file opening abilities before establishing a spawned channel
 			let append_writer_rslt = std::io::mk_file_writer( &path, &[Create, Append] );
 			let file_reader_rslt = std::io::file_reader( &path );
 			if append_writer_rslt.is_err() {
-				return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args , copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"zc9sQbV5cvyhYOUD" ) ) );			  				
+				return Err( FitErrs::from_obj( Bootstrap::fit_sys_err( copy self.file_args , copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"zc9sQbV5cvyhYOUD" ) ) );			  				
 			} else if file_reader_rslt.is_err() {
-				return  Err(  FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"tUMNwzzD2qFXXomQ" ) ) );			  				
+				return  Err(  FitErrs::from_obj( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"tUMNwzzD2qFXXomQ" ) ) );			  				
 			}
 		}
 		do spawn {	
@@ -112,13 +111,13 @@ impl FileAppendSlice {
 			if append_writer_rslt.is_err() {
 				match in_port.try_recv().expect("file_append_slice 1") {  //send the error to the first thing that communicates
 		  			DoFit( args, _, home_chan ) => {
-		  				home_chan.send( FitSysErr( FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"aP5FFu7dV0xNr4MZ" ) ) ) );			  				
+		  				home_chan.send( FitSysErr( FitErrs::from_obj( Bootstrap::fit_sys_err( args.doc, copy append_writer_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"aP5FFu7dV0xNr4MZ" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else if file_reader_rslt.is_err() {
 				match in_port.try_recv().expect("file_append_slice 2") {
 		  			DoFit( args, _, home_chan ) => {
-		  				home_chan.send( FitSysErr(  FitErrs::from_object( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"Ov1duvNzsrX9syZb" ) ) ) );			  				
+		  				home_chan.send( FitSysErr(  FitErrs::from_obj( Bootstrap::fit_sys_err( args.doc, copy file_reader_rslt.get_err(), copy fit_key, ~"file_append_slice.rs", ~"Ov1duvNzsrX9syZb" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else {
@@ -135,7 +134,7 @@ impl FileAppendSlice {
 						},
 			  			DoFit( args, _, home_chan ) => {
 			  				if args.attach.len() == 0 {
-		  						home_chan.send( FitErr ( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) );
+		  						home_chan.send( FitErr ( FitErrs::from_obj( Bootstrap::logic_error( Bootstrap::slice_len_cannot_be_zero(), ~"attach", ~"e42iDEm1ulsqawrf", ~"file_append_slice.rs") ) ) );
 		  					} else {
 			  					//No need to check args because all fits have their args checked 
 				  				//according to spec prior to getting called and doc_slice_prep has already sliced the document
@@ -152,8 +151,6 @@ impl FileAppendSlice {
 		        				slice.insert( ~"pos", start_pos.to_json() );
 							    slice.insert( ~"len", args.attach.len().to_json() );
 							    slice.insert( ~"fn", file_num.to_json() );
-								//put the return args together and send them home
-								//let mut r_args = ~HashMap::new();
 								slice.insert( ~"spec_key", (Bootstrap::spec_file_slice_key()).to_json() );
 								home_chan.send( FitOk( ~FitArgs::from_doc( slice ) ) );
 							}

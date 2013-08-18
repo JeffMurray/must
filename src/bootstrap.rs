@@ -12,7 +12,7 @@
 
 extern mod std;
 extern mod extra;
-use extra::json ::{ Object, ToJson, String, List}; //, Json 
+use extra::json ::{ Object, ToJson, String, List, Number}; //, Json 
 use std::hashmap::HashMap;
 
 //  I'm leaving this with a long name like bootstrap to remind me how 
@@ -54,7 +54,7 @@ impl Bootstrap {
 			~"d6nLKNjnN05tJ2fl" => { Bootstrap::spec_find_slice_result() }
 			~"cb2jMrSLSf72526W" => { Bootstrap::spec_append_slice() }
 			~"TqXOr3DcqolwQavT" => { Bootstrap::spec_stored_doc() }
-			~"H4rthuJ99hvwg8FZ" => { Bootstrap::fit_errs() }
+			~"H4rthuJ99hvwg8FZ" => { Bootstrap::fit_errs_spec() }
 			~"l79xpsPDlugK29zC" => { Bootstrap::reply_error_trace_info_spec() }
 			_ => { Bootstrap::spec_jah_spec_corrupt() }	
 		}
@@ -97,7 +97,7 @@ impl Bootstrap {
 		let mut err = ~HashMap::new();		
 		//	The main source of information about rule document that reported on arg_name
 		err.insert( ~"rule_key", String( rule_key ).to_json() );
-		err.insert( ~"spec_key", spec_key.to_json() );
+		err.insert( ~"spec_key", String( Bootstrap::spec_rule_error_spec_key() ).to_json() );
 		//	The name of the supplied arg_name that is at issue
 		err.insert( ~"arg_name", String( arg_name ) );
 		//	The main source of information about the specification that reported this error
@@ -106,7 +106,20 @@ impl Bootstrap {
 		err.insert( ~"line_key", String( line_key ).to_json() );
 		err
  	}
- 	
+
+	
+ 	pub fn extra_json_parse_error(line: uint, col: uint, msg: ~str, file_name: ~str, line_key: ~str) -> ~Object { 
+	 
+		let mut err = ~HashMap::new();		
+		err.insert( ~"line", line.to_json() );
+		err.insert( ~"col", col.to_json() );
+		err.insert( ~"msg", String( msg ).to_json() );
+		err.insert( ~"file_name", String( file_name ).to_json() );
+		err.insert( ~"spec_key", String( Bootstrap::spec_extra_json_parse_error_key() ).to_json() );
+		err.insert( ~"line_key", String( line_key ).to_json() );
+		err
+ 	}
+ 	 	
  	pub fn logic_error(rule_key: ~str, arg_name: ~str, line_key: ~str, file_name: ~str) -> ~Object { 
 	 
 		let mut err = ~HashMap::new();		
@@ -355,35 +368,43 @@ impl Bootstrap {
 	 	spec
 	}	
 	
-	fn spec_hole_key() -> ~str {
-		~"f0ALGyiyVzMmy3z8"
-	}
-	fn spec_next_hole_location_key() -> ~str {
-		~"YvS6YKAm697XtRmG"
-	}
-		
-	fn spec_doc_location_key() -> ~str {
-		~"rcq0cffIOqyhQrcl"
-	}	
+	pub fn spec_extra_json_parse_error_key() -> ~str {
 	
-	fn spec_next_hole_location() -> ~Object {
+		~"kVeRoMzA2wbCCNGB"
+	}
 	
-	 	let mut allowed = ~HashMap::new();
-		allowed.insert( ~"next_hole", ~[  
+ 	pub fn spec_extra_json_parse_error() -> ~Object { 
+	 
+		let mut allowed = ~HashMap::new();		
+		allowed.insert( ~"line", ~[
 	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
-	 		Bootstrap::arg_rule_obj_must_be_object().to_json()
-		]);
+	 		Bootstrap::arg_rule_num_must_be_number().to_json()
+ 		] );
+		allowed.insert( ~"col",  ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_num_must_be_number().to_json()
+ 		] );
+		allowed.insert( ~"msg", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		] );
+		allowed.insert( ~"file_name", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		] );
 		allowed.insert( ~"spec_key", ~[
 	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
 	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
-		]);
-		
+		] );
+		allowed.insert( ~"line_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		] );
 		let mut spec = ~HashMap::new();
-	 	spec.insert( ~"spec_key", String( Bootstrap::spec_next_hole_location_key() ).to_json() );
-	 	spec.insert( ~"allowed", allowed.to_json() );
-	 	spec		
-	}
-
+		spec.insert( ~"allowed", allowed.to_json() );
+		spec.insert( ~"spec_key", Bootstrap::spec_extra_json_parse_error_key().to_json() );
+		spec
+ 	}	
 	fn spec_doc_location() -> ~Object {
 	
 	 	let mut allowed = ~HashMap::new();
@@ -401,11 +422,7 @@ impl Bootstrap {
 	 	spec.insert( ~"allowed", allowed.to_json() );
 	 	spec		
 	}
-		
-	fn spec_hole_location() -> ~str {
-		~"YvS6YKAm697XtRmG"
-	}
-		
+			
 	fn spec_rule_error_spec_key() -> ~str {
 		
 		~"gSNKN6Ey2JmDx70W"
@@ -557,11 +574,15 @@ impl Bootstrap {
 		spec
  	}
 
+ 	fn spec_doc_location_key() -> ~str {
+		~"rcq0cffIOqyhQrcl"
+	}	
+	
  	pub fn spec_stored_doc_key() -> ~str {
  	
  		~"TqXOr3DcqolwQavT"
  	}
- 	
+
  	pub fn spec_stored_doc() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
@@ -663,19 +684,19 @@ impl Bootstrap {
 		spec
 	}
 	
- 	pub fn fit_errs_key() -> ~str {
+ 	pub fn fit_errs_spec_key() -> ~str {
 	 	
 	 	~"H4rthuJ99hvwg8FZ"
 	}
 		
- 	pub fn fit_errs() -> ~Object {
+ 	pub fn fit_errs_spec() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
 		allowed.insert( ~"errs", List( ~[Bootstrap::arg_rule_arg_must_be_a_list().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", allowed.to_json() );
-		spec.insert( ~"spec_key", String( Bootstrap::fit_errs_key() ).to_json() );
+		spec.insert( ~"spec_key", String( Bootstrap::fit_errs_spec_key() ).to_json() );
 		spec
 	}	
 	
@@ -692,6 +713,43 @@ impl Bootstrap {
 		spec
 	 } 
 	 
+	
+	//**************** lurker *******************
+	
+	pub fn lurker_spec_required() -> ~str {
+	
+		~"rcNoqNV0SdmsuswF"
+	}
+	pub fn spec_hole_location() -> ~str {
+	
+		~"YvS6YKAm697XtRmG"
+	} 
+	pub fn spec_hole_key() -> ~str {
+	
+		~"f0ALGyiyVzMmy3z8"
+	}
+	pub fn spec_next_hole_location_key() -> ~str {
+	
+		~"YvS6YKAm697XtRmG"
+	}	
+	pub fn spec_next_hole_location() -> ~Object {
+	
+	 	let mut allowed = ~HashMap::new();
+		allowed.insert( ~"next_hole", ~[  
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_obj_must_be_object().to_json()
+		]);
+		allowed.insert( ~"spec_key", ~[
+	 		Bootstrap::arg_rule_arg_must_exist().to_json(),
+	 		Bootstrap::arg_rule_arg_must_be_string().to_json()
+		]);
+		
+		let mut spec = ~HashMap::new();
+	 	spec.insert( ~"spec_key", String( Bootstrap::spec_next_hole_location_key() ).to_json() );
+	 	spec.insert( ~"allowed", allowed.to_json() );
+	 	spec		
+	}	 
+	 
 	// A gallery holds holds holds either a tunnel ore a chamber for each key that it holds.
  	pub fn lurker_gallery_spec_key() -> ~str {
 	 	
@@ -701,7 +759,7 @@ impl Bootstrap {
  	pub fn lurker_gallery_spec() -> ~Object {
  	
  		let mut allowed = ~HashMap::new();
-		allowed.insert( ~"keys", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
+		allowed.insert( ~"holes", List( ~[Bootstrap::arg_rule_obj_must_be_object().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		allowed.insert( ~"spec_key", List( ~[Bootstrap::arg_rule_arg_must_be_string().to_json(), Bootstrap::arg_rule_arg_must_exist().to_json() ] ) );
 		let mut spec = ~HashMap::new();
 		spec.insert( ~"allowed", allowed.to_json() );

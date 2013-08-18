@@ -36,18 +36,33 @@
 
 //  most of the action is in fits/lurker_tunnel.rs, or will be when it is finished
 
+extern mod std;
+extern mod extra;
+use extra::json::{ Object, Json };//,Null,ToJson
+use std::hashmap::HashMap;
+use std::str::from_char;
+
+//struct Gallery;
+
 trait Gallery {
 
-	fn find_hole(&self, val: char ) -> Result<Object, None>;
+	fn find_hole(&self, val: char ) -> Option<~Object>;
 }
 
 impl Gallery for ~HashMap<~str, Json> {
 
-	fn find_hole(&self, val: char ) -> Result<Object, None>  {
+	fn find_hole(&self, val: char ) -> Option<~Object>  {
 		
-		match self.find( from_char( val ) ) {
-			Some( obj ) => {
-				obj
+		match self.find( &from_char( val ) ) {
+			Some( jsn ) => {
+				match( copy *jsn ) {
+					Object(  obj ) => {
+						Some( copy obj )
+					}
+					_ => {
+						None
+					}
+				}
 			}
 			None => {
 				None
@@ -55,7 +70,3 @@ impl Gallery for ~HashMap<~str, Json> {
 		}
 	}
 }
-
-
-
-

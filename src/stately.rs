@@ -24,7 +24,7 @@ extern mod transcriptor;
 use transcriptor::{ Transcriptor };
 use jah_args::{ JahArgs };
 use par::{ ParTrans };
-use fit::{ FitArgs };
+use fit::{ FitArgs, FitComm };
 use parts::{ ParTInComm, GetParTChan, ParTChan, ParTErr };
 use must::{ Must };
 use bootstrap::{ Bootstrap };
@@ -32,13 +32,13 @@ use std::comm::{ oneshot, ChanOne, stream, SharedChan };
 use std::task::{ spawn };
 
 enum LoopOutComm {
-	ComebackIfOk( ~FitArgs, ~FitArgs, ~str, Must, ChanOne<LoopInComm> ), // ( state, args, strand_key, t_key, comeback_chan ),
+	DoAndComeback( ~FitArgs, ~str, Must, SharedChan<LoopInComm>, Option<~FitArgs>, Option<ChanOne<FitComm>>  ), // ( args, strand_key, t_key, comeback_chan, state, fit_comm ),
 	StatelyRelease
 }
 
 enum LoopInComm {
-	Comeback( ~FitArgs, ~FitArgs ), // ( state, args )
-	LostToErr( ~FitArgs ) // ( state )
+	ComebackOk( ~FitArgs, Option<~FitArgs>, Option<ChanOne<FitComm>> ), // ( r_val, state ,fit_comm )
+	LostToErr( Option<~FitArgs>, Option<ChanOne<FitComm>> ) // ( state ,fit_chan )
 }
 
 struct StateServ;
@@ -57,10 +57,10 @@ impl StateServ {
 		do spawn {
 			loop {
 				match port.try_recv().expect("stately.rs 9aaCGY2qUQLWnbC0") {
-					ComebackIfOk( state, args, strand_key, t_key, comeback_chan ) => {
+					DoAndComeback( args, strand_key, t_key, comeback_chan, state_opt, fit_comm_opt ) => {
 						let ( port, chan ) = stream();
 						StateServ::do_comeback( port, parts_chan.clone() );
-						chan.send( ComebackIfOk( state, args, strand_key, t_key, comeback_chan ) );					
+						chan.send( DoAndComeback( args, strand_key, t_key, comeback_chan, state_opt, fit_comm_opt ) );					
 					}
 					StatelyRelease => {
 						break;
@@ -75,21 +75,19 @@ impl StateServ {
 		do spawn {
 			//let stdin = std::io::stdin();
 			match port.try_recv().expect("stately.rs yuuylItuDTAzTrGt") {
-				ComebackIfOk( state, args, strand_key, t_key, comeback_chan ) => {
-		  				println( "ComebackIfOk" );
-						//stdin.read_line();				
+				DoAndComeback( args, strand_key, t_key, comeback_chan, state_opt, fit_comm_opt ) => {		
 					let ( gb_port, gb_chan ) = stream();
 					let goodby_chan = SharedChan::new( gb_chan );
 					let t_chan = Transcriptor::connect( strand_key, copy t_key ) ;
 					t_chan.send( ( args, parts_chan.clone(), goodby_chan.clone() ) );
 					match gb_port.try_recv().expect("stately.rs pZMohLpjPywldwUO") {
 						Ok( fit_args ) => {
-							comeback_chan.send( Comeback( state, fit_args ) );
+							comeback_chan.send( ComebackOk( fit_args, state_opt, fit_comm_opt ) );
 						}
 						Err( fit_errs ) => {
 							println( "- E R R O R -" );
 							println( fit_errs.to_str() );
-							comeback_chan.send( LostToErr( state ) );
+							comeback_chan.send( LostToErr( state_opt, fit_comm_opt ) );
 						}
 					}
 				}

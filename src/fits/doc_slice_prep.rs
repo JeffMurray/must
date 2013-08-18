@@ -94,7 +94,7 @@ impl DocSlicePrep {
 								//so I am checking the must spec
 								match JahSpec::check_args( &Bootstrap::find_spec( Bootstrap::spec_must_key() ), &doc ) {
 									Err( errs ) => {
-										Err( FitErrs::from_objects( errs ) )
+										Err( FitErrs::from_objs( errs ) )
 									}
 									Ok( _ ) => {
 										doc.remove(&~"must");
@@ -104,7 +104,7 @@ impl DocSlicePrep {
 								}
 							}
 							_ => {
-								Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_not_known_to_fit(), doc.get_str(~"spec_key").get(), ~"aZWkaywgi34NMiDk", ~"doc_slice_prep.rs") ) )
+								Err( FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::arg_spec_key_not_known_to_fit(), doc.get_str(~"spec_key").get(), ~"aZWkaywgi34NMiDk", ~"doc_slice_prep.rs") ) )
 							}
 						}};
 					match new_must {

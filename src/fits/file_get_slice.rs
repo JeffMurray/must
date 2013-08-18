@@ -81,7 +81,7 @@ impl FileGetSlice {
 					let path = Path( path_str );
 					let file_reader_rslt = std::io::file_reader( &path );
 					if file_reader_rslt.is_err() {
-		  				home_chan.send( FitSysErr( FitErrs::from_object( Bootstrap::fit_sys_err( fit_args.doc , copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"jlSoLMf7JAOKMF6A" ) ) ) );			  				
+		  				home_chan.send( FitSysErr( FitErrs::from_obj( Bootstrap::fit_sys_err( fit_args.doc , copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"jlSoLMf7JAOKMF6A" ) ) ) );			  				
 					} else {
 						let file_reader = file_reader_rslt.get();
 						//Fits are guaranteed that the jah_spec for the incoming doc have already been checked
@@ -119,7 +119,7 @@ impl FileGetSlice {
 		//I open reader at the beginning while I can still deny the communication channel ;)
 		let file_reader_rslt = std::io::file_reader( &Path( copy file_path ) );
 		if file_reader_rslt.is_err() {
-	  		return Err( FitErrs::from_object( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"YXoR14QfuczXLyeh" ) ) );			  				
+	  		return Err( FitErrs::from_obj( Bootstrap::fit_sys_err( copy self.file_args, copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"YXoR14QfuczXLyeh" ) ) );			  				
 		}
     	//At the point of writing this, I do not fully understand the pro's and con's
     	//related to spawning and opening a new reader every time a slice is read.
@@ -130,7 +130,7 @@ impl FileGetSlice {
 			if file_reader_rslt.is_err() {
 				match in_port.try_recv().expect("file_get_slice 2") {
 		  			DoFit( _, _, home_chan ) => {
-		  				home_chan.send( FitErr( FitErrs::from_object( Bootstrap::fit_sys_err( ~HashMap::new() , copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"5kQeNVLDkteS1c2w" ) ) ) );			  				
+		  				home_chan.send( FitErr( FitErrs::from_obj( Bootstrap::fit_sys_err( ~HashMap::new() , copy file_reader_rslt.get_err(), copy fit_key, ~"file_get_slice.rs", ~"5kQeNVLDkteS1c2w" ) ) ) );			  				
 		  			} _ => {}
 		  		}
 			} else {
@@ -170,7 +170,7 @@ impl FileGetSlice {
 		match JahSpec::check_args( &self.arg_out(), &self.file_args ) {
 			Ok( _ ) => { }
 			Err( errs ) => {
-				return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info(~"file_get_slice.rs", ~"rx9vMuM19wlGvMm2" )]  + errs ) );
+				return Err( FitErrs::from_objs( ~[Bootstrap::reply_error_trace_info(~"file_get_slice.rs", ~"rx9vMuM19wlGvMm2" )]  + errs ) );
 			}
 		}
 		// Since args has passed a spec check, I am pretty confident using .get()		

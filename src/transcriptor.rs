@@ -66,7 +66,7 @@ impl Transcriptor {
 							}
 						}
 						LogicErr( errs ) => {
-							goodby_chan.send( Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"OYKXYUpuTz14Ew0m" ),errs] ) ) ); 
+							goodby_chan.send( Err( FitErrs::from_objs( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"OYKXYUpuTz14Ew0m" ),errs] ) ) ); 
 						} 
 						EndOfStrand	=> { 
 							match Transcriptor::extract_args( &mut arg_bank, &mut attached ) {
@@ -107,10 +107,10 @@ impl Transcriptor {
 				Err( err ) => {
 					match err {
 						MissingKey => {
-							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"0vKBkZjRUMVei1QX", ~"transcriptor.rs" ) ) )
+							return Err( FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"0vKBkZjRUMVei1QX", ~"transcriptor.rs" ) ) )
 						}
 						WrongDataType => {
-							return Err( FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"QyKtHrBE8GXB0WEf", ~"transcriptor.rs" ) ) )
+							return Err( FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"QyKtHrBE8GXB0WEf", ~"transcriptor.rs" ) ) )
 						}
 					}
 				} 
@@ -162,7 +162,7 @@ impl Transcriptor {
 								Ok( NextOk )					
 							}
 							Err( errs ) => {
-								let fit_errs = FitErrs::from_objects( errs);
+								let fit_errs = FitErrs::from_objs( errs);
 								Transcriptor::merge_args( &~FitArgs::from_doc( fit_errs.to_args() ), arg_bank, attached );
 								Ok( NextOk )								
 							}
@@ -172,10 +172,10 @@ impl Transcriptor {
 						let errs = {
 							match err_type {
 								MissingKey => {
-									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"transcriptor.rs" ) )
+									FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", ~"TWRUF69B4hv4v5Iz", ~"transcriptor.rs" ) )
 								}
 								WrongDataType => {
-									FitErrs::from_object( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"transcriptor.rs" ) )
+									FitErrs::from_obj( Bootstrap::logic_error(Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", ~"iwpCbbmXqKyvc9VL", ~"transcriptor.rs" ) )
 								}
 							}};
 						Transcriptor::merge_args( &~FitArgs::from_doc( errs.to_args() ), arg_bank, attached );
@@ -220,7 +220,7 @@ impl Transcriptor {
 		let keys = { 
 			match JahSpec::allowed_keys( spec ) {
 				Ok( keys ) => { keys } 
-				Err( err ) => { return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"RqTr8enRtmwjwWrf" )] + err ) ) }
+				Err( err ) => { return Err( FitErrs::from_objs( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"RqTr8enRtmwjwWrf" )] + err ) ) }
 				}};
 		for keys.iter().advance | key | {
 			match arg_bank.find( key ) {
@@ -240,7 +240,7 @@ impl Transcriptor {
 									copy *attached_bytes
 								}
 								None => {
-									return Err( FitErrs::from_object( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), attached_name, ~"Kyzltdf11TRcTIiI", ~"transcriptor.rs" ) ) )
+									return Err( FitErrs::from_obj( Bootstrap::logic_error( Bootstrap::named_attachment_is_missing(), attached_name, ~"Kyzltdf11TRcTIiI", ~"transcriptor.rs" ) ) )
 								}
 							}
 						}
@@ -250,7 +250,7 @@ impl Transcriptor {
 					}
 				}
 				Err( errs ) => {
-					return Err( FitErrs::from_objects( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"FHLGfPficrDnNzao" )] + errs ) );
+					return Err( FitErrs::from_objs( ~[Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"FHLGfPficrDnNzao" )] + errs ) );
 				}	
 			}};
 		Ok( ~FitArgs{ doc: rval, attach: attch } )
@@ -265,7 +265,7 @@ impl Transcriptor {
 						true
 					}
 					Err( errs ) => {
-						gb_chan.send( Err( FitErrs::from_objects( errs ).prepend_err( Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"OAGw7LnsZ0j03d4W") ) ) );
+						gb_chan.send( Err( FitErrs::from_objs( errs ).prepend_err( Bootstrap::reply_error_trace_info( ~"transcriptor.rs", ~"OAGw7LnsZ0j03d4W") ) ) );
 						false
 					}
 				}
@@ -273,10 +273,10 @@ impl Transcriptor {
 			Err( reason ) => {
 				match reason {
 					MissingKey => {
-						gb_chan.send( Err( FitErrs::from_object( Bootstrap::spec_rule_error( Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", Bootstrap::spec_jah_spec_corrupt_key() , ~"JRkY9TDbehfPPA2F") ) ) );
+						gb_chan.send( Err( FitErrs::from_obj( Bootstrap::spec_rule_error( Bootstrap::arg_spec_key_arg_must_exist(), ~"spec_key", Bootstrap::spec_jah_spec_corrupt_key() , ~"JRkY9TDbehfPPA2F") ) ) );
 					}
 					WrongDataType => {
-						gb_chan.send( Err( FitErrs::from_object( Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", Bootstrap::spec_jah_spec_corrupt_key(), ~"rkO0NumJeuQy7Fnu") ) ) );
+						gb_chan.send( Err( FitErrs::from_obj( Bootstrap::spec_rule_error( Bootstrap::arg_rule_arg_must_be_string_key(), ~"spec_key", Bootstrap::spec_jah_spec_corrupt_key(), ~"rkO0NumJeuQy7Fnu") ) ) );
 					}
 				}
 				false

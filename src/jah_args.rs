@@ -14,9 +14,11 @@
 
 extern mod std;
 extern mod extra;
-use extra::json::{Object,String,Number,Json,List,Boolean, ToJson};//,Null,ToJson
+use extra::json::{ Object, String, Number, Json, List, Boolean, ToJson, PrettyEncoder };//,Null,ToJson
 use std::hashmap::HashMap;
 use std::option::{ Some, None };
+use std::io::BytesWriter;
+use extra::serialize::Encodable;
 
 enum GetArgErrorType {
 	MissingKey,
@@ -34,6 +36,7 @@ trait JahArgs {
 	pub fn arg_count( &self) -> uint;
 	pub fn arg_keys( &self ) -> ~[~str];
 	pub fn to_pretty_str( &self ) -> ~str;
+	pub fn to_pretty_vec( &self ) -> ~[u8];
 }
 
 impl JahArgs for ~HashMap<~str, Json> {
@@ -145,6 +148,15 @@ impl JahArgs for ~HashMap<~str, Json> {
 		}
 	}
 	
+	pub fn to_pretty_vec( &self ) -> ~[u8] {
+	
+		let bw = @BytesWriter::new();
+		let mut encoder = PrettyEncoder( bw as @Writer );
+		self.to_json().encode( &mut encoder );				
+		bw.flush();
+		copy *bw.bytes	
+	}
+	 
 	pub fn has_arg( &self, key: &~str ) -> bool {
 	
 		self.contains_key(key) 

@@ -20,14 +20,13 @@ extern mod must;
 extern mod bootstrap;
 use bootstrap::{ Bootstrap };
 use must::{ Must };
-use stately::{ Comeback, LostToErr, LoopOutComm, ComebackIfOk};
-use std::comm::{ stream, Port, Chan };  //, SharedChan
-use extra::json::{ Object, ToJson, String };//,Number,List, PrettyEncoder
+use stately::{ DoAndComeback, LostToErr, LoopOutComm, ComebackOk};
+use std::comm::{ stream, Port, Chan, SharedChan };
+use extra::json::{ ToJson, String };//,Number,List, PrettyEncoder
 use std::hashmap::HashMap;
 use fit::{ Parfitable, ParFitComm, DoFit, ParFitCommEndChan, FitOk, FitArgs, FitErrs}; 
 use jah_spec::{ JahSpeced }; 
 use jah_args::{ JahArgs };
-use std::comm::{ oneshot, SharedChan };
 
 struct StatelyTester {
 	stately_chan: SharedChan<LoopOutComm>
@@ -75,50 +74,79 @@ impl StatelyTester {
 		  			DoFit( _, t_key, home_chan ) => {
 		  				//does the same basic test regardless of the incoming args
 		  				let state_ok = Must::new();		
-		  				let ( p1, c1 ) = oneshot();
-		  				stately_chan.send( ComebackIfOk( ~FitArgs::from_doc( state_ok.to_obj() ), ~FitArgs::from_doc( Bootstrap::reply_error_trace_info( ~"stately_tester.rs", ~"ChhEUlXgiJKHDzI0" ) ), ~"DROOg7Vt2GXiVl00", *copy t_key, c1 ) );  // ( state, args, strand_key, t_key, comeback_chan )
+		  				let ( p1, c1 ) = stream();
+		  				let c1 = SharedChan::new( c1 );
+		  				stately_chan.send( DoAndComeback( ~FitArgs::from_doc( Bootstrap::reply_error_trace_info( ~"stately_tester.rs", ~"ChhEUlXgiJKHDzI0" ) ), ~"DROOg7Vt2GXiVl00", *copy t_key, c1, Some( ~FitArgs::from_doc( state_ok.to_obj() ) ), None ) );  // ( args, strand_key, t_key, comeback_chan, state_opt, fit_comm_opt )
 		  				match p1.try_recv().expect( "stately_tester.rs Nvq6D43Qq8JCG4hS" ) {
-  							Comeback( state, args ) => { // ( state, args )
-  								match Must::from_obj( &state.doc ) {
-  									Ok( st ) => {
-  										assert!( st == state_ok );
-  									}
-  									Err( _ ) => {
-  										fail!();
-  									}
-  								}
-  								match args.doc.get_str( ~"spec_key" ) {
-  									Ok( key ) => {
-  										assert!( key == ~"er5OWig71VG9oNjK" );  // this is the spec_key that the ErrFit returns.										
-  									}
-  									Err( _ ) => {
-  										fail!();
-  									}
-  								}
-  							}
-							LostToErr( _ ) => {
-								fail!();
-							}
+  							ComebackOk( args, state_opt, fit_comm_opt ) => { 
+  								match state_opt {
+  									Some( state ) => {
+		  								match Must::from_obj( &state.doc ) {
+		  									Ok( st ) => {
+		  										assert!( st == state_ok );
+		  									}
+		  									Err( _ ) => {
+		  										fail!();
+		  									}
+		  								}
+		  							}
+		  							None => {
+		  								fail!();
+		  							}
+		  						}
+		  						match fit_comm_opt {
+									Some( _ ) => {
+										fail!();										
+									}
+									None => {
+										//this is what we expect
+									}
+								}
+								match args.doc.get_str( ~"spec_key" ) {
+									Ok( key ) => {
+										assert!( key == ~"er5OWig71VG9oNjK" );  // this is the spec_key that the ErrFit returns.										
+									}
+									Err( _ ) => {
+										fail!();
+									}
+								}
+							}		  						
+		  					_ => {	fail!();
+		  					}
 		  				}
 		  				println( "sending Error in stately_tester.rs as a test for LostToErr" );	  				
 						let mut args = Bootstrap::reply_error_trace_info( ~"stately_tester.rs", ~"LABaRJT4NwQka5BN" );
 						let state_err = Must::new();
 		  				args.insert( ~"dude", String( ~"dude" ).to_json() ); // sending an argument that is not in the spec
-						let ( p2, c2 ) = oneshot();
-		  				stately_chan.send( ComebackIfOk( ~FitArgs::from_doc( state_err.to_obj() ), ~FitArgs::from_doc( args ), ~"DROOg7Vt2GXiVl00", *copy t_key, c2 ) ); // ( state, args, strand_key, t_key, comeback_chan )
+						let ( p2, c2 ) = stream();
+						let c2 = SharedChan::new( c2 );
+		  				stately_chan.send( DoAndComeback( ~FitArgs::from_doc( args ), ~"DROOg7Vt2GXiVl00", *copy t_key, c2, Some( ~FitArgs::from_doc( state_err.to_obj() ) ), None ) ); // ( state, args, strand_key, t_key, comeback_chan )
 		  				match p2.try_recv().expect( "stately_tester.rs JQCobR337OOhVwzi" ) {
-  							Comeback( _, _ ) => { // ( state, args )
+  							ComebackOk( _, _, _ ) => { // ( args, state_opt, fit_comm_opt )
   								fail!();
   							}
-							LostToErr( state ) => {
-  								match Must::from_obj( &state.doc ) {
-  									Ok( st ) => {
-  										assert!( st == state_err );
-  									}
-  									Err( _ ) => {
-  										fail!();
-  									}
-  								}							
+							LostToErr( state_opt, fit_comm_opt ) => {
+								match state_opt {
+									Some( state ) => {
+								  		match Must::from_obj( &state.doc ) {
+		  									Ok( st ) => {
+		  										assert!( st == state_err );
+		  									}
+		  									Err( _ ) => {
+		  										fail!();
+		  									}
+		  								}
+	  								}
+	  								None => {
+	  									fail!();
+	  								}
+	  							}	
+								match fit_comm_opt {
+									Some( _ ) => {
+										fail!();
+	  								}
+	  								None => {}
+	  							}	  													
 							}
 		  				}
 		  				let state_add_ok = Must::new();	
@@ -130,18 +158,11 @@ impl StatelyTester {
 						//args.insert( ~"must", Must::new().to_json() );	
 						args.insert( ~"doc", doc.to_json() );
 						args.insert( ~"spec_key", String( Bootstrap::spec_add_doc_key() ).to_json() );
-						let ( p3, c3 ) = oneshot();
-						stately_chan.send( ComebackIfOk( ~FitArgs::from_doc( state_add_ok.to_obj() ), ~FitArgs::from_doc( args ), Bootstrap::must_start_strand(), *copy t_key, c3 ) ); // ( state, args, strand_key, t_key, comeback_chan )
+						let ( p3, c3 ) = stream();
+						let c3 = SharedChan::new( c3 );
+						stately_chan.send( DoAndComeback( ~FitArgs::from_doc( args ), Bootstrap::must_start_strand(), *copy t_key, c3, Some( ~FitArgs::from_doc( state_add_ok.to_obj() ) ), None ) ); // ( state, args, strand_key, t_key, comeback_chan ) )
 						match p3.try_recv().expect( "stately_tester.rs OScAaqxLEtRouSzj" ) {
-  							Comeback( state, args ) => { // ( state, args )
-  								match Must::from_obj( &state.doc ) {
-  									Ok( st ) => {
-  										assert!( st == state_add_ok );
-  									}
-  									Err( _ ) => {
-  										fail!();
-  									}
-  								}
+  							ComebackOk( args, state_opt, fit_comm_opt ) => {
   								match args.doc.get_str( ~"spec_key" ) {
   									Ok( key ) => {
   										assert!( key == Bootstrap::spec_file_slice_key() ); 										
@@ -150,8 +171,29 @@ impl StatelyTester {
   										fail!();
   									}
   								}
+  								match state_opt {
+  									Some( state ) => {
+		  								match Must::from_obj( &state.doc ) {
+		  									Ok( st ) => {
+		  										assert!( st == state_add_ok );
+		  									}
+		  									Err( _ ) => {
+		  										fail!();
+		  									}
+		  								}
+		  							}
+		  							None => {
+		  								fail!();
+		  							}
+		  						}
+		  						match fit_comm_opt {
+		  							None => {}
+		  							_ => {
+		  								fail!();
+		  							}	
+		  						}
   							}
-							LostToErr( _ ) => {
+							LostToErr( _, _ ) => {
 								//println( state.doc.to_str() );
 								fail!();
 							}
