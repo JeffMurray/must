@@ -1,3 +1,8 @@
+This project was just playing around learning rust.
+
+This code has long been abandoned.
+
+
 Must Document System
 ====
 
